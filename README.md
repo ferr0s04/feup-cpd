@@ -12,3 +12,4 @@ Project 2
 | ---- | --------------- |
 | Afonso Castro | [El-Castro](https://github.com/El-Castro) |
 | Gonçalo Ferros | [ferr0s04](https://github.com/ferr0s04) |
+| Pedro Oliveira | [up202000149](https://github.com/up202000149) |
