@@ -1,8 +1,30 @@
-using System;
+﻿using System;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 class MatrixMultiplication
 {
+    // Importa as funções PAPI
+    [DllImport("libpapi.so")]
+    private static extern int PAPI_library_init(int version);
+    
+    [DllImport("libpapi.so")]
+    private static extern int PAPI_create_eventset(ref int EventSet);
+    
+    [DllImport("libpapi.so")]
+    private static extern int PAPI_add_event(int EventSet, int eventCode);
+    
+    [DllImport("libpapi.so")]
+    private static extern int PAPI_start(int EventSet);
+    
+    [DllImport("libpapi.so")]
+    private static extern int PAPI_stop(int EventSet, long[] values);
+    
+    private const int PAPI_VER_CURRENT = 0x00000207;
+    private const int PAPI_L1_DCM = unchecked((int)0x80000002); // L1 Data Cache Misses
+    private const int PAPI_L2_DCM = unchecked((int)0x8000002B); // L2 Data Cache Misses
+
+
     static void Main(string[] args)
     {
         if (args.Length < 2)
@@ -12,9 +34,9 @@ class MatrixMultiplication
             return;
         }
 
-        int n = int.Parse(args[0]); // Matrix size (NxN)
-        int operation = int.Parse(args[1]); // Operation type
-        int blockSize = (args.Length == 3) ? int.Parse(args[2]) : 2; // Default block size if not provided
+        int n = int.Parse(args[0]); 
+        int operation = int.Parse(args[1]);
+        int blockSize = (args.Length == 3) ? int.Parse(args[2]) : 2;
 
         double[,] A = new double[n, n];
         double[,] B = new double[n, n];
@@ -25,7 +47,18 @@ class MatrixMultiplication
 
         Stopwatch stopwatch = new Stopwatch();
 
+        // Inicializa PAPI
+        PAPI_library_init(PAPI_VER_CURRENT);
+        int eventSet = 0;
+        PAPI_create_eventset(ref eventSet);
+        PAPI_add_event(eventSet, PAPI_L1_DCM);
+        PAPI_add_event(eventSet, PAPI_L2_DCM);
+
+        long[] values = new long[2];
+
+        PAPI_start(eventSet);
         stopwatch.Start();
+
         switch (operation)
         {
             case 1:
@@ -41,9 +74,14 @@ class MatrixMultiplication
                 Console.WriteLine("Invalid operation!");
                 return;
         }
+
         stopwatch.Stop();
+        PAPI_stop(eventSet, values);
 
         Console.WriteLine($"Time elapsed: {stopwatch.ElapsedMilliseconds / 1000.0} seconds");
+        Console.WriteLine($"L1 Data Cache Misses: {values[0]}");
+        Console.WriteLine($"L2 Data Cache Misses: {values[1]}");
+
         PrintMatrix(C, n);
     }
 
