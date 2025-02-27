@@ -8,23 +8,26 @@
     "net9.0": []
   },
   "packageFolders": {
-    "C:\\Users\\gfgeo\\.nuget\\packages\\": {}
+    "/root/.nuget/packages/": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "D:\\FEUP\\CPD\\assign1\\assign1.csproj",
+      "projectUniqueName": "/mnt/d/FEUP/CPD/assign1/assign1.csproj",
       "projectName": "assign1",
-      "projectPath": "D:\\FEUP\\CPD\\assign1\\assign1.csproj",
-      "packagesPath": "C:\\Users\\gfgeo\\.nuget\\packages\\",
-      "outputPath": "D:\\FEUP\\CPD\\assign1\\obj\\",
+      "projectPath": "/mnt/d/FEUP/CPD/assign1/assign1.csproj",
+      "packagesPath": "/root/.nuget/packages/",
+      "outputPath": "/mnt/d/FEUP/CPD/assign1/obj/",
       "projectStyle": "PackageReference",
       "configFilePaths": [
-        "C:\\Users\\gfgeo\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        "/root/.nuget/NuGet/NuGet.Config"
       ],
       "originalTargetFrameworks": [
         "net9.0"
       ],
+      "sources": {
+        "https://api.nuget.org/v3/index.json": {}
+      },
       "frameworks": {
         "net9.0": {
           "targetAlias": "net9.0",
@@ -62,7 +65,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.200/PortableRuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/9.0.200/PortableRuntimeIdentifierGraph.json"
       }
     }
   }

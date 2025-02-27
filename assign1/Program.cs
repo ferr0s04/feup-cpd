@@ -5,22 +5,22 @@ using System.Runtime.InteropServices;
 class MatrixMultiplication
 {
     // Importa as funções PAPI
-    [DllImport("libpapi.so")]
+    [DllImport("/usr/lib/x86_64-linux-gnu/libpapi.so")]
     private static extern int PAPI_library_init(int version);
     
-    [DllImport("libpapi.so")]
+    [DllImport("/usr/lib/x86_64-linux-gnu/libpapi.so")]
     private static extern int PAPI_create_eventset(ref int EventSet);
     
-    [DllImport("libpapi.so")]
+    [DllImport("/usr/lib/x86_64-linux-gnu/libpapi.so")]
     private static extern int PAPI_add_event(int EventSet, int eventCode);
     
-    [DllImport("libpapi.so")]
+    [DllImport("/usr/lib/x86_64-linux-gnu/libpapi.so")]
     private static extern int PAPI_start(int EventSet);
     
-    [DllImport("libpapi.so")]
+    [DllImport("/usr/lib/x86_64-linux-gnu/libpapi.so")]
     private static extern int PAPI_stop(int EventSet, long[] values);
     
-    private const int PAPI_VER_CURRENT = 0x00000207;
+    private const int PAPI_VER_CURRENT = 0x00020100;
     private const int PAPI_L1_DCM = unchecked((int)0x80000002); // L1 Data Cache Misses
     private const int PAPI_L2_DCM = unchecked((int)0x8000002B); // L2 Data Cache Misses
 
@@ -33,6 +33,14 @@ class MatrixMultiplication
             Console.WriteLine("Operations: 1 (Standard Multiplication), 2 (Row-wise), 3 (Block Multiplication)");
             return;
         }
+
+        int papiStatus = PAPI_library_init(PAPI_VER_CURRENT);
+        if (papiStatus != PAPI_VER_CURRENT)
+        {
+            Console.WriteLine($"Erro ao inicializar PAPI! Código de erro: {papiStatus}");
+            return;
+        }
+
 
         int n = int.Parse(args[0]); 
         int operation = int.Parse(args[1]);
