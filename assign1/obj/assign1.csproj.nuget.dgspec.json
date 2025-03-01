@@ -1,25 +1,26 @@
 {
   "format": 1,
   "restore": {
-    "/mnt/d/FEUP/CPD/assign1/assign1.csproj": {}
+    "/home/afonso-castro/Desktop/Faculdade/CPD/feup-cpd/assign1/assign1.csproj": {}
   },
   "projects": {
-    "/mnt/d/FEUP/CPD/assign1/assign1.csproj": {
+    "/home/afonso-castro/Desktop/Faculdade/CPD/feup-cpd/assign1/assign1.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/mnt/d/FEUP/CPD/assign1/assign1.csproj",
+        "projectUniqueName": "/home/afonso-castro/Desktop/Faculdade/CPD/feup-cpd/assign1/assign1.csproj",
         "projectName": "assign1",
-        "projectPath": "/mnt/d/FEUP/CPD/assign1/assign1.csproj",
-        "packagesPath": "/root/.nuget/packages/",
-        "outputPath": "/mnt/d/FEUP/CPD/assign1/obj/",
+        "projectPath": "/home/afonso-castro/Desktop/Faculdade/CPD/feup-cpd/assign1/assign1.csproj",
+        "packagesPath": "/home/afonso-castro/.nuget/packages/",
+        "outputPath": "/home/afonso-castro/Desktop/Faculdade/CPD/feup-cpd/assign1/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "/root/.nuget/NuGet/NuGet.Config"
+          "/home/afonso-castro/.nuget/NuGet/NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net9.0"
         ],
         "sources": {
+          "/usr/lib/dotnet/library-packs": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
@@ -38,7 +39,7 @@
           "auditLevel": "low",
           "auditMode": "direct"
         },
-        "SdkAnalysisLevel": "9.0.200"
+        "SdkAnalysisLevel": "9.0.100"
       },
       "frameworks": {
         "net9.0": {
@@ -59,7 +60,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/9.0.200/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "/usr/lib/dotnet/sdk/9.0.103/PortableRuntimeIdentifierGraph.json"
         }
       }
     }
