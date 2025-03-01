@@ -4,6 +4,7 @@
 #include <time.h>
 #include <cstdlib>
 #include <papi.h>
+#include <omp.h>
 
 using namespace std;
 
@@ -157,6 +158,101 @@ void OnMultBlock(int m_ar, int m_br, int bkSize) {
     free(phc);
 }
 
+void OnMultParallel(int m_ar, int m_br) 
+{
+    double temp;
+    int i, j, k;
+
+    double *pha, *phb, *phc;
+    
+    pha = (double *)malloc((m_ar * m_ar) * sizeof(double));
+    phb = (double *)malloc((m_ar * m_ar) * sizeof(double));
+    phc = (double *)malloc((m_ar * m_ar) * sizeof(double));
+
+    for(i = 0; i < m_ar; i++)
+        for(j = 0; j < m_ar; j++)
+            pha[i * m_ar + j] = 1.0;
+
+    for(i = 0; i < m_br; i++)
+        for(j = 0; j < m_br; j++)
+            phb[i * m_br + j] = i + 1.0;
+
+    double start_time = omp_get_wtime();
+
+    #pragma omp parallel for private(i, j, k, temp) collapse(2)
+    for(i = 0; i < m_ar; i++)
+    {   for(k = 0; k < m_ar; k++)
+        {   temp = pha[i * m_ar + k];
+            for(j = 0; j < m_br; j++)
+            {   phc[i * m_br + j] += temp * phb[k * m_br + j];
+            }
+        }
+    }
+
+    double end_time = omp_get_wtime();
+    printf("Time: %3.3f seconds\n", end_time - start_time);
+
+    cout << "Result matrix: " << endl;
+    for(j = 0; j < min(10, m_br); j++)
+        cout << phc[j] << " ";
+    cout << endl;
+
+    free(pha);
+    free(phb);
+    free(phc);
+}
+
+void OnMultLineParallel(int m_ar, int m_br) {
+    double Time1, Time2;
+    char st[100];
+
+    double *pha, *phb, *phc;
+
+    pha = (double *)malloc((m_ar * m_ar) * sizeof(double));
+    phb = (double *)malloc((m_ar * m_ar) * sizeof(double));
+    phc = (double *)malloc((m_ar * m_ar) * sizeof(double));
+
+    #pragma omp parallel for collapse(2)
+    for (int i = 0; i < m_ar; i++)
+        for (int j = 0; j < m_ar; j++)
+            pha[i * m_ar + j] = 1.0;
+
+    #pragma omp parallel for collapse(2)
+    for (int i = 0; i < m_br; i++)
+        for (int j = 0; j < m_br; j++)
+            phb[i * m_br + j] = i + 1.0;
+
+    Time1 = omp_get_wtime();
+
+    #pragma omp parallel
+    {
+        for (int i = 0; i < m_ar; i++) {
+            for (int k = 0; k < m_ar; k++) {
+                double a = pha[i * m_ar + k];
+
+                #pragma omp for
+                for (int j = 0; j < m_br; j++) {
+                    phc[i * m_br + j] += a * phb[k * m_br + j];
+                }
+            }
+        }
+    }
+
+    Time2 = omp_get_wtime();
+    sprintf(st, "Time: %3.3f seconds\n", Time2 - Time1);
+    cout << st;
+
+    cout << "Result matrix: " << endl;
+    for (int j = 0; j < min(10, m_br); j++)
+        cout << phc[j] << " ";
+    
+    cout << endl;
+
+    free(pha);
+    free(phb);
+    free(phc);
+}
+
 void handle_error(int retval)
 {
     printf("PAPI error %d: %s\n", retval, PAPI_strerror(retval));
@@ -167,7 +263,7 @@ int main(int argc, char *argv[])
 {
     if (argc < 3) {
         cout << "Usage: " << argv[0] << " <operation> <size> [blockSize]" << endl;
-        cout << "Operation: 1=Multiplication, 2=Line Multiplication, 3=Block Multiplication" << endl;
+        cout << "Operation: 1=Multiplication, 2=Line Multiplication, 3=Block Multiplication, 4=Parallel Multiplication, 5=Parallel Line Multiplication" << endl;
         return 1;
     }
 
@@ -208,6 +304,12 @@ int main(int argc, char *argv[])
                 return 1;
             }
             OnMultBlock(lin, col, blockSize);
+            break;
+        case 4:
+            OnMultParallel(lin, col);
+            break;
+        case 5:
+            OnMultLineParallel(lin, col);
             break;
         default:
             cout << "Invalid operation." << endl;

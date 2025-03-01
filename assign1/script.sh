@@ -7,6 +7,8 @@ if [ "$#" -ne 1 ]; then
     echo "  2 - Line multiplication for sizes 600x600 to 3000x3000 (step 400)"
     echo "  3 - Line multiplication for sizes 4096x4096 to 10240x10240 (step 2048)"
     echo "  4 - Block multiplication for sizes 4096x4096 to 10240x10240 (step 2048) with block sizes 128, 256 and 512"
+    echo "  5 - Parallel multiplication for sizes 600x600 to 3000x3000 (step 400)"
+    echo "  6 - Parallel line multiplication for sizes 600x600 to 3000x3000 (step 400)"
     exit 1
 fi
 
@@ -14,15 +16,19 @@ case $1 in
     1)
         for size in {600..3000..400}; do
             echo "Running ./matrixproduct 1 $size"
-            ./matrixproduct 1 $size
-            echo "--------------------------------------"
+            #./matrixproduct 1 $size
+            echo "Running dotnet run 1 $size"
+            dotnet run 1 $size
+            echo "---------------------------------------"
         done
         ;;
     2)
         for size in {600..3000..400}; do
             echo "Running ./matrixproduct 2 $size"
-            ./matrixproduct 2 $size
-            echo "--------------------------------------"
+            #./matrixproduct 2 $size
+            echo "Running dotnet run 2 $size"
+            dotnet run 2 $size
+            echo "---------------------------------------"
         done
         ;;
     3)
@@ -41,8 +47,29 @@ case $1 in
             done
         done
         ;;
+
+    5)
+        for size in {600..3000..400}; do
+            echo "Running ./matrixproduct 4 $size"
+            ./matrixproduct 4 $size
+            #echo "Running dotnet run 4 $size"
+            #dotnet run 4 $size
+            echo "--------------------------------------"
+        done
+        ;;
+
+    6)
+        for size in {600..3000..400}; do
+            echo "Running ./matrixproduct 5 $size"
+            ./matrixproduct 5 $size
+            #echo "Running dotnet run 5 $size"
+            #dotnet run 5 $size
+            echo "--------------------------------------"
+        done
+        ;;
+
     *)
-        echo "Invalid option. Use 1, 2, 3, or 4."
+        echo "Invalid option. Use 1-6."
         exit 1
         ;;
 esac
