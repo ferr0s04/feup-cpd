@@ -12,29 +12,42 @@ if [ "$#" -ne 1 ]; then
     exit 1
 fi
 
+output_file="results.csv"
+echo "Option,Size,Block Size,Time,L1 DCM,L2 DCM" > $output_file
+
 case $1 in
     1)
         for size in {600..3000..400}; do
-            echo "Running ./matrixproduct 1 $size"
-            #./matrixproduct 1 $size
             echo "Running dotnet run 1 $size"
-            dotnet run 1 $size
+            result=$(dotnet run 1 $size)
+            #result=$(./matrixproduct 1 $size)            
+            time=$(echo "$result" | grep "Time:" | awk '{print $2}')
+            l1_dcm=$(echo "$result" | grep "L1 DCM:" | awk '{print $3}')
+            l2_dcm=$(echo "$result" | grep "L2 DCM:" | awk '{print $3}')
+            echo "1,$size,,${time},${l1_dcm},${l2_dcm}" >> $output_file
             echo "---------------------------------------"
         done
         ;;
     2)
         for size in {600..3000..400}; do
-            echo "Running ./matrixproduct 2 $size"
-            #./matrixproduct 2 $size
             echo "Running dotnet run 2 $size"
-            dotnet run 2 $size
+            result=$(dotnet run 2 $size)
+            #result=$(./matrixproduct 2 $size)
+            time=$(echo "$result" | grep "Time:" | awk '{print $2}')
+            l1_dcm=$(echo "$result" | grep "L1 DCM:" | awk '{print $3}')
+            l2_dcm=$(echo "$result" | grep "L2 DCM:" | awk '{print $3}')
+            echo "2,$size,,${time},${l1_dcm},${l2_dcm}" >> $output_file
             echo "---------------------------------------"
         done
         ;;
     3)
         for size in {4096..10240..2048}; do
             echo "Running ./matrixproduct 2 $size"
-            ./matrixproduct 2 $size
+            result=$(./matrixproduct 2 $size)
+            time=$(echo "$result" | grep "Time:" | awk '{print $2}')
+            l1_dcm=$(echo "$result" | grep "L1 DCM:" | awk '{print $3}')
+            l2_dcm=$(echo "$result" | grep "L2 DCM:" | awk '{print $3}')
+            echo "3,$size,,${time},${l1_dcm},${l2_dcm}" >> $output_file
             echo "--------------------------------------"
         done
         ;;
@@ -42,32 +55,37 @@ case $1 in
         for size in {4096..10240..2048}; do
             for block in 128 256 512; do
                 echo "Running ./matrixproduct 3 $size $block"
-                ./matrixproduct 3 $size $block
+                result=$(./matrixproduct 3 $size $block)
+                time=$(echo "$result" | grep "Time:" | awk '{print $2}')
+                l1_dcm=$(echo "$result" | grep "L1 DCM:" | awk '{print $3}')
+                l2_dcm=$(echo "$result" | grep "L2 DCM:" | awk '{print $3}')
+                echo "4,$size,$block,${time},${l1_dcm},${l2_dcm}" >> $output_file
                 echo "--------------------------------------"
             done
         done
         ;;
-
     5)
         for size in {600..3000..400}; do
             echo "Running ./matrixproduct 4 $size"
-            ./matrixproduct 4 $size
-            #echo "Running dotnet run 4 $size"
-            #dotnet run 4 $size
+            result=$(./matrixproduct 4 $size)
+            time=$(echo "$result" | grep "Time:" | awk '{print $2}')
+            l1_dcm=$(echo "$result" | grep "L1 DCM:" | awk '{print $3}')
+            l2_dcm=$(echo "$result" | grep "L2 DCM:" | awk '{print $3}')
+            echo "5,$size,,${time},${l1_dcm},${l2_dcm}" >> $output_file
             echo "--------------------------------------"
         done
         ;;
-
     6)
         for size in {600..3000..400}; do
             echo "Running ./matrixproduct 5 $size"
-            ./matrixproduct 5 $size
-            #echo "Running dotnet run 5 $size"
-            #dotnet run 5 $size
+            result=$(./matrixproduct 5 $size)
+            time=$(echo "$result" | grep "Time:" | awk '{print $2}')
+            l1_dcm=$(echo "$result" | grep "L1 DCM:" | awk '{print $3}')
+            l2_dcm=$(echo "$result" | grep "L2 DCM:" | awk '{print $3}')
+            echo "6,$size,,${time},${l1_dcm},${l2_dcm}" >> $output_file
             echo "--------------------------------------"
         done
         ;;
-
     *)
         echo "Invalid option. Use 1-6."
         exit 1
