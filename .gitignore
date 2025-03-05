@@ -3,3 +3,4 @@
 CPD.sln
 /assign1/bin
 /assign1/obj
+*.o
