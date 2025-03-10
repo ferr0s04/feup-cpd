@@ -1,6 +1,8 @@
 /assign1/papi
 /.vscode
 CPD.sln
+/assign1/src/bin
+/assign1/src/obj
 /assign1/bin
 /assign1/obj
 *.o
