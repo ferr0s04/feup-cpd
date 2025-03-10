@@ -1,0 +1,42 @@
+Running ./matrixproduct 1 600
+Running dotnet run 1 600
+Time: 1.099 seconds
+Result matrix:
+180300 180300 180300 180300 180300 180300 180300 180300 180300 180300 
+--------------------------------------
+Running ./matrixproduct 1 1000
+Running dotnet run 1 1000
+Time: 5.167 seconds
+Result matrix:
+500500 500500 500500 500500 500500 500500 500500 500500 500500 500500 
+--------------------------------------
+Running ./matrixproduct 1 1400
+Running dotnet run 1 1400
+Time: 14.665 seconds
+Result matrix:
+980700 980700 980700 980700 980700 980700 980700 980700 980700 980700 
+--------------------------------------
+Running ./matrixproduct 1 1800
+Running dotnet run 1 1800
+Time: 33.216 seconds
+Result matrix:
+1620900 1620900 1620900 1620900 1620900 1620900 1620900 1620900 1620900 1620900 
+--------------------------------------
+Running ./matrixproduct 1 2200
+Running dotnet run 1 2200
+Time: 60.543 seconds
+Result matrix:
+2421100 2421100 2421100 2421100 2421100 2421100 2421100 2421100 2421100 2421100 
+--------------------------------------
+Running ./matrixproduct 1 2600
+Running dotnet run 1 2600
+Time: 100.909 seconds
+Result matrix:
+3381300 3381300 3381300 3381300 3381300 3381300 3381300 3381300 3381300 3381300 
+--------------------------------------
+Running ./matrixproduct 1 3000
+Running dotnet run 1 3000
+Time: 155.362 seconds
+Result matrix:
+4501500 4501500 4501500 4501500 4501500 4501500 4501500 4501500 4501500 4501500 
+--------------------------------------
