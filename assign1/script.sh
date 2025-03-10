@@ -17,7 +17,7 @@ fi
 
 case $1 in
     1)
-        output_file="docs/results/results1.csv"
+        output_file="doc/results/results1.csv"
         echo "Option,Size,Block Size,Time,L1 DCM,L2 DCM" > $output_file
         for size in {600..3000..400}; do
             echo "Running ./matrixproduct 1 $size"
@@ -30,7 +30,7 @@ case $1 in
         done
         ;;
     2)
-        output_file="docs/results/results2.csv"
+        output_file="doc/results/results2.csv"
         echo "Option,Size,Block Size,Time,L1 DCM,L2 DCM" > $output_file
         for size in {600..3000..400}; do
             echo "Running ./matrixproduct 2 $size"
@@ -43,7 +43,7 @@ case $1 in
         done
         ;;
     3)
-        output_file="docs/results/results3.csv"
+        output_file="doc/results/results3.csv"
         echo "Option,Size,Block Size,Time,L1 DCM,L2 DCM" > $output_file
         for size in {4096..10240..2048}; do
             echo "Running ./matrixproduct 2 $size"
@@ -56,7 +56,7 @@ case $1 in
         done
         ;;
     4)
-        output_file="docs/results/results4.csv"
+        output_file="doc/results/results4.csv"
         echo "Option,Size,Block Size,Time,L1 DCM,L2 DCM" > $output_file
         for size in {4096..10240..2048}; do
             for block in 128 256 512; do
@@ -71,7 +71,7 @@ case $1 in
         done
         ;;
     5)
-        output_file="docs/results/results5.csv"
+        output_file="doc/results/results5.csv"
         echo "Option,Size,Block Size,Time,L1 DCM,L2 DCM" > $output_file
         for size in {600..3000..400}; do
             echo "Running ./matrixproduct 4 $size"
@@ -84,7 +84,7 @@ case $1 in
         done
         ;;
     6)
-        output_file="docs/results/results6.csv"
+        output_file="doc/results/results6.csv"
         echo "Option,Size,Block Size,Time,L1 DCM,L2 DCM" > $output_file
         for size in {600..3000..400}; do
             echo "Running ./matrixproduct 5 $size"
@@ -97,7 +97,7 @@ case $1 in
         done
         ;;
     7)
-        output_file="docs/results/results7.csv"
+        output_file="doc/results/results7.csv"
         echo "Option,Size,Block Size,Time,L1 DCM,L2 DCM" > $output_file
         for size in {600..3000..400}; do
             echo "Running dotnet run 1 $size"
@@ -110,7 +110,7 @@ case $1 in
         done
         ;;
     8)
-        output_file="docs/results/results8.csv"
+        output_file="doc/results/results8.csv"
         echo "Option,Size,Block Size,Time,L1 DCM,L2 DCM" > $output_file
         for size in {600..3000..400}; do
             echo "Running dotnet run 2 $size"

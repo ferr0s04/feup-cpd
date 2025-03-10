@@ -158,42 +158,54 @@ void OnMultBlock(int m_ar, int m_br, int bkSize) {
     free(phc);
 }
 
-void OnMultParallel(int m_ar, int m_br) 
-{
-    double temp;
-    int i, j, k;
+
+void OnMultLineParallel1(int m_ar, int m_br) {
+    double Time1, Time2;
+    char st[100];
 
     double *pha, *phb, *phc;
-    
+
     pha = (double *)malloc((m_ar * m_ar) * sizeof(double));
-    phb = (double *)malloc((m_ar * m_ar) * sizeof(double));
-    phc = (double *)malloc((m_ar * m_ar) * sizeof(double));
+    phb = (double *)malloc((m_ar * m_br) * sizeof(double));
+    phc = (double *)malloc((m_ar * m_br) * sizeof(double));
 
-    for(i = 0; i < m_ar; i++)
-        for(j = 0; j < m_ar; j++)
-            pha[i * m_ar + j] = 1.0;
+    // Initialize matrices in a single parallel region
+    #pragma omp parallel
+    {
+        #pragma omp for collapse(2)
+        for (int i = 0; i < m_ar; i++)
+            for (int j = 0; j < m_ar; j++)
+                pha[i * m_ar + j] = 1.0;
 
-    for(i = 0; i < m_br; i++)
-        for(j = 0; j < m_br; j++)
-            phb[i * m_br + j] = i + 1.0;
+        #pragma omp for collapse(2)
+        for (int i = 0; i < m_ar; i++)
+            for (int j = 0; j < m_br; j++)
+                phb[i * m_br + j] = i + 1.0;
 
-    double start_time = omp_get_wtime();
+        #pragma omp for collapse(2)
+        for (int i = 0; i < m_ar; i++)
+            for (int j = 0; j < m_br; j++)
+                phc[i * m_br + j] = 0.0;
+    }
 
-    #pragma omp parallel for private(i, j, k, temp) collapse(2)
-    for(i = 0; i < m_ar; i++)
-    {   for(k = 0; k < m_ar; k++)
-        {   temp = pha[i * m_ar + k];
-            for(j = 0; j < m_br; j++)
-            {   phc[i * m_br + j] += temp * phb[k * m_br + j];
+    Time1 = omp_get_wtime();
+
+    // Parallel matrix multiplication
+    #pragma omp parallel for collapse(2)
+    for (int i = 0; i < m_ar; i++) {
+        for (int k = 0; k < m_ar; k++) {
+            for (int j = 0; j < m_br; j++) {
+                phc[i * m_br + j] += pha[i * m_ar + k] * phb[k * m_br + j];
             }
         }
     }
 
-    double end_time = omp_get_wtime();
-    printf("Time: %3.3f seconds\n", end_time - start_time);
+    Time2 = omp_get_wtime();
+    sprintf(st, "Time: %3.3f seconds\n", Time2 - Time1);
+    cout << st;
 
-    cout << "Result matrix: " << endl;
-    for(j = 0; j < min(10, m_br); j++)
+    cout << "Result matrix: ";
+    for (int j = 0; j < min(10, m_br); j++)
         cout << phc[j] << " ";
     cout << endl;
 
@@ -202,28 +214,38 @@ void OnMultParallel(int m_ar, int m_br)
     free(phc);
 }
 
-void OnMultLineParallel(int m_ar, int m_br) {
+void OnMultLineParallel2(int m_ar, int m_br) {
     double Time1, Time2;
     char st[100];
 
     double *pha, *phb, *phc;
 
     pha = (double *)malloc((m_ar * m_ar) * sizeof(double));
-    phb = (double *)malloc((m_ar * m_ar) * sizeof(double));
-    phc = (double *)malloc((m_ar * m_ar) * sizeof(double));
+    phb = (double *)malloc((m_ar * m_br) * sizeof(double));
+    phc = (double *)malloc((m_ar * m_br) * sizeof(double));
 
-    #pragma omp parallel for collapse(2)
-    for (int i = 0; i < m_ar; i++)
-        for (int j = 0; j < m_ar; j++)
-            pha[i * m_ar + j] = 1.0;
+    // Initialize matrices in a single parallel region
+    #pragma omp parallel
+    {
+        #pragma omp for collapse(2)
+        for (int i = 0; i < m_ar; i++)
+            for (int j = 0; j < m_ar; j++)
+                pha[i * m_ar + j] = 1.0;
 
-    #pragma omp parallel for collapse(2)
-    for (int i = 0; i < m_br; i++)
-        for (int j = 0; j < m_br; j++)
-            phb[i * m_br + j] = i + 1.0;
+        #pragma omp for collapse(2)
+        for (int i = 0; i < m_ar; i++)
+            for (int j = 0; j < m_br; j++)
+                phb[i * m_br + j] = i + 1.0;
+
+        #pragma omp for collapse(2)
+        for (int i = 0; i < m_ar; i++)
+            for (int j = 0; j < m_br; j++)
+                phc[i * m_br + j] = 0.0;
+    }
 
     Time1 = omp_get_wtime();
 
+    // Parallel matrix multiplication
     #pragma omp parallel
     {
         for (int i = 0; i < m_ar; i++) {
@@ -232,6 +254,7 @@ void OnMultLineParallel(int m_ar, int m_br) {
 
                 #pragma omp for
                 for (int j = 0; j < m_br; j++) {
+                    #pragma omp atomic
                     phc[i * m_br + j] += a * phb[k * m_br + j];
                 }
             }
@@ -242,10 +265,9 @@ void OnMultLineParallel(int m_ar, int m_br) {
     sprintf(st, "Time: %3.3f seconds\n", Time2 - Time1);
     cout << st;
 
-    cout << "Result matrix: " << endl;
+    cout << "Result matrix: ";
     for (int j = 0; j < min(10, m_br); j++)
         cout << phc[j] << " ";
-    
     cout << endl;
 
     free(pha);
@@ -306,10 +328,10 @@ int main(int argc, char *argv[])
             OnMultBlock(lin, col, blockSize);
             break;
         case 4:
-            OnMultParallel(lin, col);
+            OnMultLineParallel1(lin, col);
             break;
         case 5:
-            OnMultLineParallel(lin, col);
+            OnMultLineParallel2(lin, col);
             break;
         default:
             cout << "Invalid operation." << endl;
