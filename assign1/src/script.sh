@@ -7,8 +7,8 @@ if [ "$#" -ne 1 ]; then
     echo "  2 - Line multiplication for sizes 600x600 to 3000x3000 (step 400)"
     echo "  3 - Line multiplication for sizes 4096x4096 to 10240x10240 (step 2048)"
     echo "  4 - Block multiplication for sizes 4096x4096 to 10240x10240 (step 2048) with block sizes 128, 256 and 512"
-    echo "  5 - Parallel multiplication for sizes 600x600 to 3000x3000 (step 400)"
-    echo "  6 - Parallel line multiplication for sizes 600x600 to 3000x3000 (step 400)"
+    echo "  5 - Parallel line multiplication (Listing 1) for sizes 600x600 to 3000x3000 (step 400) and 4096x4096 to 10240x10240 (step 2048)"
+    echo "  6 - Parallel line multiplication (Listing 2) for sizes 600x600 to 3000x3000 (step 400) and 4096x4096 to 10240x10240 (step 2048)"
     echo "  7 - C# Multiplication for sizes 600x600 to 3000x3000 (step 400)"
     echo "  8 - C# Line multiplication for sizes 600x600 to 3000x3000 (step 400)"
     exit 1
