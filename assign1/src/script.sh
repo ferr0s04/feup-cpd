@@ -82,11 +82,29 @@ case $1 in
             echo "5,$size,,${time},${l1_dcm},${l2_dcm}" >> $output_file
             echo "--------------------------------------"
         done
+        for size in {4096..10240..2048}; do
+            echo "Running ./matrixproduct 4 $size"
+            result=$(./matrixproduct 4 $size)
+            time=$(echo "$result" | grep "Time:" | awk '{print $2}')
+            l1_dcm=$(echo "$result" | grep "L1 DCM:" | awk '{print $3}')
+            l2_dcm=$(echo "$result" | grep "L2 DCM:" | awk '{print $3}')
+            echo "5,$size,,${time},${l1_dcm},${l2_dcm}" >> $output_file
+            echo "--------------------------------------"
+        done
         ;;
     6)
         output_file="../doc/results/results6.csv"
         echo "Option,Size,Block Size,Time,L1 DCM,L2 DCM" > $output_file
         for size in {600..3000..400}; do
+            echo "Running ./matrixproduct 5 $size"
+            result=$(./matrixproduct 5 $size)
+            time=$(echo "$result" | grep "Time:" | awk '{print $2}')
+            l1_dcm=$(echo "$result" | grep "L1 DCM:" | awk '{print $3}')
+            l2_dcm=$(echo "$result" | grep "L2 DCM:" | awk '{print $3}')
+            echo "6,$size,,${time},${l1_dcm},${l2_dcm}" >> $output_file
+            echo "--------------------------------------"
+        done
+        for size in {4096..10240..2048}; do
             echo "Running ./matrixproduct 5 $size"
             result=$(./matrixproduct 5 $size)
             time=$(echo "$result" | grep "Time:" | awk '{print $2}')
