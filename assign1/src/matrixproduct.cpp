@@ -158,7 +158,6 @@ void OnMultBlock(int m_ar, int m_br, int bkSize) {
     free(phc);
 }
 
-
 void OnMultLineParallel1(int m_ar, int m_br) {
     double Time1, Time2;
     char st[100];
@@ -295,7 +294,7 @@ int main(int argc, char *argv[])
     int blockSize = (argc == 4) ? atoi(argv[3]) : 0;
 
     int EventSet = PAPI_NULL;
-    long long values[2];
+    long long values[3];
     int ret;
 
     ret = PAPI_library_init(PAPI_VER_CURRENT);
@@ -307,8 +306,11 @@ int main(int argc, char *argv[])
     ret = PAPI_add_event(EventSet, PAPI_L1_DCM);
     if (ret != PAPI_OK) cout << "ERROR: PAPI_L1_DCM" << endl;
 
-    ret = PAPI_add_event(EventSet, PAPI_L2_DCM);
-    if (ret != PAPI_OK) cout << "ERROR: PAPI_L2_DCM" << endl;
+    ret = PAPI_add_event(EventSet, PAPI_L2_TCM);
+    if (ret != PAPI_OK) cout << "ERROR: PAPI_L2_TCM" << endl;
+
+    ret = PAPI_add_event(EventSet, PAPI_L3_TCM);
+    if (ret != PAPI_OK) cout << "ERROR: PAPI_L3_TCM" << endl;
 
     ret = PAPI_start(EventSet);
     if (ret != PAPI_OK) cout << "ERROR: Start PAPI" << endl;
@@ -341,10 +343,12 @@ int main(int argc, char *argv[])
     ret = PAPI_stop(EventSet, values);
     if (ret != PAPI_OK) cout << "ERROR: Stop PAPI" << endl;
     printf("L1 DCM: %lld \n", values[0]);
-    printf("L2 DCM: %lld \n", values[1]);
+    printf("L2 TCM: %lld \n", values[1]);
+    printf("L3 TCM: %lld \n", values[2]);
 
     PAPI_remove_event(EventSet, PAPI_L1_DCM);
-    PAPI_remove_event(EventSet, PAPI_L2_DCM);
+    PAPI_remove_event(EventSet, PAPI_L2_TCM);
+    PAPI_remove_event(EventSet, PAPI_L3_TCM);
     PAPI_destroy_eventset(&EventSet);
     return 0;
 }
