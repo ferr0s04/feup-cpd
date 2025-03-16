@@ -296,25 +296,37 @@ int main(int argc, char *argv[])
     int EventSet = PAPI_NULL;
     long long values[3];
     int ret;
-
+    
     ret = PAPI_library_init(PAPI_VER_CURRENT);
     if (ret != PAPI_VER_CURRENT) cout << "FAIL" << endl;
-
+    
     ret = PAPI_create_eventset(&EventSet);
     if (ret != PAPI_OK) cout << "ERROR: create eventset" << endl;
-
+    
     ret = PAPI_add_event(EventSet, PAPI_L1_DCM);
-    if (ret != PAPI_OK) cout << "ERROR: PAPI_L1_DCM" << endl;
-
-    ret = PAPI_add_event(EventSet, PAPI_L2_TCM);
-    if (ret != PAPI_OK) cout << "ERROR: PAPI_L2_TCM" << endl;
-
-    ret = PAPI_add_event(EventSet, PAPI_L3_TCM);
-    if (ret != PAPI_OK) cout << "ERROR: PAPI_L3_TCM" << endl;
-
+    if (ret != PAPI_OK) {
+        cout << "ERROR: PAPI_L1_DCM - " << PAPI_strerror(ret) << endl;
+    } else {
+        cout << "PAPI_L1_DCM added successfully." << endl;
+    }
+    
+    ret = PAPI_add_event(EventSet, PAPI_L2_DCM);
+    if (ret != PAPI_OK) {
+        cout << "ERROR: PAPI_L2_DCM - " << PAPI_strerror(ret) << endl;
+    } else {
+        cout << "PAPI_L2_DCM added successfully." << endl;
+    }
+    
+    ret = PAPI_add_event(EventSet, PAPI_L2_ICM);
+    if (ret != PAPI_OK) {
+        cout << "ERROR: PAPI_L2_ICM - " << PAPI_strerror(ret) << endl;
+    } else {
+        cout << "PAPI_L2_ICM added successfully." << endl;
+    }
+    
     ret = PAPI_start(EventSet);
     if (ret != PAPI_OK) cout << "ERROR: Start PAPI" << endl;
-
+    
     switch (op) {
         case 1:
             OnMult(lin, col);
@@ -339,16 +351,16 @@ int main(int argc, char *argv[])
             cout << "Invalid operation." << endl;
             return 1;
     }
-
+    
     ret = PAPI_stop(EventSet, values);
     if (ret != PAPI_OK) cout << "ERROR: Stop PAPI" << endl;
     printf("L1 DCM: %lld \n", values[0]);
-    printf("L2 TCM: %lld \n", values[1]);
-    printf("L3 TCM: %lld \n", values[2]);
-
+    printf("L2 DCM: %lld \n", values[1]);
+    printf("L2 ICM: %lld \n", values[2]);
+    
     PAPI_remove_event(EventSet, PAPI_L1_DCM);
-    PAPI_remove_event(EventSet, PAPI_L2_TCM);
-    PAPI_remove_event(EventSet, PAPI_L3_TCM);
+    PAPI_remove_event(EventSet, PAPI_L2_DCM);
+    PAPI_remove_event(EventSet, PAPI_L2_ICM);
     PAPI_destroy_eventset(&EventSet);
     return 0;
 }
