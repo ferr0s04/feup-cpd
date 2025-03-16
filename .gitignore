@@ -7,3 +7,6 @@ g14.sln
 /assign1/bin
 /assign1/obj
 *.o
+*.out
+*.exe
+assign1/src/matrixproduct
