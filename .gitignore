@@ -9,4 +9,6 @@ g14.sln
 *.o
 *.out
 *.exe
+*.class
 assign1/src/matrixproduct
+/.idea
