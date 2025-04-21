@@ -1,0 +1,24 @@
+{
+  "users": [
+    {
+      "username": "Alice",
+      "passwordHash": "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8"
+    },
+    {
+      "username": "Bob",
+      "passwordHash": "8d059c3640b97180dd2ee453e20d34ab0cb0f2eccbe87d01915a8e578a202b11"
+    }
+  ],
+  "chatrooms": [
+    {
+      "name": "geral",
+      "participants": [],
+      "messages": []
+    },
+    {
+      "name": "futebol",
+      "participants": [],
+      "messages": []
+    }
+  ]
+}

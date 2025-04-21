@@ -1,0 +1,15 @@
+AUTH <username> <password>
+AUTH_OK
+AUTH_FAIL <reason>
+
+LIST_ROOMS
+ROOM_LIST <room1>,<room2>,…
+
+ENTER_ROOM <roomName>
+ENTER_OK
+ENTER_FAIL <reason>
+
+MSG <roomName> <text…>
+ROOM_MSG <roomName> <sender> <text…>
+USER_ENTERED <roomName> <username>
+USER_LEFT <roomName> <username>
