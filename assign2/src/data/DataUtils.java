@@ -30,38 +30,6 @@ public class DataUtils {
 
             String content = json.toString();
 
-            // --- USERS ---
-            if (content.contains("\"users\"")) {
-                int start = content.indexOf("[", content.indexOf("\"users\""));
-                int end = content.indexOf("]", start);
-                if (start != -1 && end != -1) {
-                    String userArray = content.substring(start + 1, end).trim();
-                    String[] userBlocks = userArray.split("\\},\\s*\\{");
-
-                    for (String userBlock : userBlocks) {
-                        userBlock = userBlock.replace("{", "").replace("}", "").trim();
-                        Map<String, String> fields = new HashMap<>();
-
-                        String[] entries = userBlock.split(",");
-                        for (String entry : entries) {
-                            String[] pair = entry.split(":", 2);
-                            if (pair.length != 2) continue;
-
-                            String key = pair[0].replaceAll("\"", "").trim();
-                            String value = pair[1].replaceAll("\"", "").trim();
-                            fields.put(key, value);
-                        }
-
-                        String username = fields.get("username");
-                        String passwordHash = fields.get("passwordHash");
-                        if (username != null && passwordHash != null) {
-                            User user = new User(username, passwordHash, new ArrayList<>());
-                            data.addUser(user);
-                        }
-                    }
-                }
-            }
-
             // --- CHATROOMS ---
             if (content.contains("\"chatrooms\"")) {
                 int chatroomStart = content.indexOf("\"chatrooms\"");
@@ -125,9 +93,46 @@ public class DataUtils {
                                 isAI = boolString.equals("true");
                             }
 
+                            List<String> messages = new ArrayList<>();
+                            int messagesIndex = roomBlock.indexOf("\"messages\"");
+                            if (messagesIndex != -1) {
+                                int messageArrayStart = roomBlock.indexOf("[", messagesIndex);
+                                int messageArrayEnd = roomBlock.indexOf("]", messageArrayStart);
+                                if (messageArrayStart != -1 && messageArrayEnd != -1) {
+                                    String raw = roomBlock.substring(messageArrayStart + 1, messageArrayEnd).trim();
+                                    if (!raw.isEmpty()) {
+                                        List<String> parsedMessages = new ArrayList<>();
+                                        StringBuilder msgBuilder = new StringBuilder();
+                                        boolean inQuotes = false;
+                                        boolean escape = false;
+
+                                        for (int i = 0; i < raw.length(); i++) {
+                                            char c = raw.charAt(i);
+                                            if (escape) {
+                                                msgBuilder.append(c);
+                                                escape = false;
+                                            } else if (c == '\\') {
+                                                escape = true;
+                                            } else if (c == '"') {
+                                                inQuotes = !inQuotes;
+                                                if (!inQuotes) {
+                                                    parsedMessages.add(msgBuilder.toString());
+                                                    msgBuilder.setLength(0);
+                                                }
+                                            } else if (inQuotes) {
+                                                msgBuilder.append(c);
+                                            }
+                                        }
+
+                                        messages.addAll(parsedMessages);
+                                    }
+                                }
+                            }
+
                             if (name != null) {
                                 ChatRoom room = new ChatRoom(name, isAI, "");
                                 data.getChatrooms().add(room);
+                                room.setHistory(messages);
                             }
                         }
                     }
@@ -163,8 +168,14 @@ public class DataUtils {
                 ChatRoom room = chatrooms.get(i);
                 writer.write("    {\n");
                 writer.write("      \"name\": \"" + room.getName() + "\",\n");
-                writer.write("      \"participants\": [],\n"); // simplificação
-                writer.write("      \"messages\": [],\n");     // simplificação
+                writer.write("      \"participants\": [],\n");
+                writer.write("      \"messages\": [");
+                List<String> messages = room.getHistory();
+                for (int j = 0; j < messages.size(); j++) {
+                    writer.write("\"" + messages.get(j).replace("\"", "\\\"") + "\"");
+                    if (j < messages.size() - 1) writer.write(", ");
+                }
+                writer.write("],\n");
                 writer.write("      \"isAI\": " + room.isAI() + "\n");
                 writer.write("    }");
 
@@ -176,5 +187,35 @@ public class DataUtils {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public static synchronized void addChatroom(String roomName, boolean isAI) {
+        DataParser data = loadData();
+
+        // Verifica se a sala já existe
+        for (ChatRoom room : data.getChatrooms()) {
+            if (room.getName().equals(roomName)) {
+                return;
+            }
+        }
+
+        ChatRoom newRoom = new ChatRoom(roomName, isAI, "");
+        data.getChatrooms().add(newRoom);
+
+        saveData(data);
+    }
+
+    public static synchronized void addMessage(String roomName, String message) {
+        DataParser data = loadData();
+
+        // Atualiza apenas se a sala existir
+        for (ChatRoom room : data.getChatrooms()) {
+            if (room.getName().equals(roomName)) {
+                room.getHistory().add(message);
+                break;
+            }
+        }
+
+        saveData(data);
     }
 }

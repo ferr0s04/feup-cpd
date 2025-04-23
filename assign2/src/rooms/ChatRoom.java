@@ -84,5 +84,10 @@ public class ChatRoom {
         this.prompt = prompt;
     }
 
+    public List<String> getHistory() { return history; }
 
+    public void setHistory(List<String> msgs) {
+        history.clear();
+        history.addAll(msgs);
+    }
 }

@@ -1,7 +1,5 @@
 import javax.net.ssl.*;
 import java.io.*;
-import java.security.KeyStore;
-import java.security.cert.X509Certificate;
 import java.util.*;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -9,6 +7,7 @@ import rooms.Session;
 import rooms.ChatRoom;
 import data.DataUtils;
 import data.DataParser;
+import auth.AuthenticationHandler;
 
 public class Server {
     private static final ReentrantLock roomsLock = new ReentrantLock();
@@ -22,22 +21,23 @@ public class Server {
 
         int port = Integer.parseInt(args[0]);
 
-        // Carrega salas a partir do JSON
+        // Load chat rooms data from JSON
         roomsLock.lock();
         try {
             DataParser data = DataUtils.loadData();
             for (ChatRoom roomData : data.getChatrooms()) {
                 ChatRoom chatRoom = new ChatRoom(roomData.getName(), roomData.isAI(), roomData.getPrompt());
+                chatRoom.setHistory(roomData.getHistory());
                 rooms.put(chatRoom.getName(), chatRoom);
             }
         } finally {
             roomsLock.unlock();
         }
 
-        // Cria o servidor TLS
+        // Create the TLS server
         try {
-            SSLServerSocket serverSocket = createSSLServerSocket(port);
-            System.out.println("TLS server listening on port " + port);
+            SSLServerSocket serverSocket = AuthenticationHandler.createSSLServerSocket(port);
+            System.out.println("Server listening on port " + port);
 
             while (true) {
                 SSLSocket clientSock = (SSLSocket) serverSocket.accept();
@@ -49,39 +49,22 @@ public class Server {
         }
     }
 
-    private static SSLServerSocket createSSLServerSocket(int port) throws Exception {
-        KeyStore keyStore = KeyStore.getInstance("JKS");
-        keyStore.load(new FileInputStream("server-keystore.jks"), "password".toCharArray());
-
-        KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
-        kmf.init(keyStore, "password".toCharArray());
-
-        KeyStore trustStore = KeyStore.getInstance("JKS");
-        trustStore.load(new FileInputStream("server-truststore.jks"), "password".toCharArray());
-
-        TrustManagerFactory tmf = TrustManagerFactory.getInstance("SunX509");
-        tmf.init(trustStore);
-
-        SSLContext sslContext = SSLContext.getInstance("TLS");
-        sslContext.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
-
-        SSLServerSocketFactory ssf = sslContext.getServerSocketFactory();
-        SSLServerSocket serverSocket = (SSLServerSocket) ssf.createServerSocket(port);
-
-        serverSocket.setNeedClientAuth(true); // exigir certificado do cliente
-        return serverSocket;
-    }
-
     private static void handleClientConnection(SSLSocket sock) {
         Session session = null;
 
         try {
-            sock.startHandshake(); // força handshake e valida o certificado do cliente
-            String username = extractClientCN(sock);
+            sock.startHandshake(); // Force handshake and validate the client's certificate
+            String username = AuthenticationHandler.extractClientCN(sock);
 
             session = new Session(sock);
             session.username = username;
             session.out.println("AUTH_OK");
+
+            // Add the client's certificate to the server's truststore if it's a new user
+            AuthenticationHandler.addCertificateToTruststore(sock);
+
+            // Reload the truststore to recognize new certificates dynamically
+            AuthenticationHandler.reloadTruststore();
 
             // --- CHAT LOOP ---
             String line;
@@ -121,18 +104,6 @@ public class Server {
         }
     }
 
-    private static String extractClientCN(SSLSocket socket) throws SSLPeerUnverifiedException {
-        SSLSession session = socket.getSession();
-        X509Certificate cert = (X509Certificate) session.getPeerCertificates()[0];
-        String dn = cert.getSubjectX500Principal().getName();
-        for (String part : dn.split(",")) {
-            if (part.trim().startsWith("CN=")) {
-                return part.trim().substring(3);
-            }
-        }
-        return "Unknown";
-    }
-
     // Métodos auxiliares para manipular salas e mensagens
     private static ChatRoom getOrCreateRoom(String name, boolean isAI, String prompt) {
         roomsLock.lock();
@@ -169,6 +140,8 @@ public class Server {
         }
 
         room.broadcast(session.username + ": " + message);
+
+        DataUtils.addMessage(room.getName(), session.username + ": " + message);
     }
 
     private static void handleCreateRoom(Session session, String[] parts) {
@@ -197,6 +170,8 @@ public class Server {
             session.currentRoom = room;
             room.join(session);
             session.out.println("ROOM_CREATED " + roomName + (isAI ? " (AI)" : ""));
+
+            DataUtils.addChatroom(roomName, isAI);
         } finally {
             roomsLock.unlock();
         }
