@@ -64,33 +64,71 @@ public class DataUtils {
 
             // --- CHATROOMS ---
             if (content.contains("\"chatrooms\"")) {
-                int start = content.indexOf("[", content.indexOf("\"chatrooms\""));
-                int end = content.indexOf("]", start);
-                if (start != -1 && end != -1) {
-                    String roomArray = content.substring(start + 1, end).trim();
-                    String[] roomBlocks = roomArray.split("\\},\\s*\\{");
+                int chatroomStart = content.indexOf("\"chatrooms\"");
+                if (chatroomStart != -1) {
+                    int arrayStart = content.indexOf("[", chatroomStart);
+                    int bracketCount = 0;
+                    int arrayEnd = -1;
 
-                    for (String roomBlock : roomBlocks) {
-                        roomBlock = roomBlock.replace("{", "").replace("}", "").trim();
-                        Map<String, String> fields = new HashMap<>();
+                    for (int i = arrayStart; i < content.length(); i++) {
+                        char c = content.charAt(i);
+                        if (c == '[') bracketCount++;
+                        else if (c == ']') bracketCount--;
+                        if (bracketCount == 0) {
+                            arrayEnd = i;
+                            break;
+                        }
+                    }
 
-                        String[] entries = roomBlock.split(",");
-                        for (String entry : entries) {
-                            String[] pair = entry.split(":", 2);
-                            if (pair.length != 2) continue;
+                    if (arrayStart != -1 && arrayEnd != -1) {
+                        String roomArray = content.substring(arrayStart + 1, arrayEnd).trim();
+                        List<String> roomBlocks = new ArrayList<>();
+                        int braceCount = 0;
+                        StringBuilder current = new StringBuilder();
 
-                            String key = pair[0].replaceAll("\"", "").trim();
-                            String value = pair[1].replaceAll("\"", "").trim();
-                            fields.put(key, value);
+                        for (int i = 0; i < roomArray.length(); i++) {
+                            char c = roomArray.charAt(i);
+                            if (c == '{') {
+                                if (braceCount == 0) current = new StringBuilder();
+                                braceCount++;
+                            }
+
+                            if (braceCount > 0) current.append(c);
+
+                            if (c == '}') {
+                                braceCount--;
+                                if (braceCount == 0) {
+                                    roomBlocks.add(current.toString());
+                                }
+                            }
                         }
 
-                        String name = fields.get("name");
-                        boolean isAI = Boolean.parseBoolean(fields.getOrDefault("isAI", "false"));
-                        String prompt = fields.getOrDefault("prompt", "");
+                        for (String roomBlock : roomBlocks) {
+                            String name = null;
+                            boolean isAI = false;
 
-                        if (name != null) {
-                            ChatRoom room = new ChatRoom(name, isAI, prompt);
-                            data.getChatrooms().add(room);
+                            int nameIndex = roomBlock.indexOf("\"name\"");
+                            int isAIIndex = roomBlock.indexOf("\"isAI\"");
+
+                            if (nameIndex != -1) {
+                                int colonIndex = roomBlock.indexOf(":", nameIndex);
+                                int startQuote = roomBlock.indexOf("\"", colonIndex);
+                                int endQuote = roomBlock.indexOf("\"", startQuote + 1);
+                                if (startQuote != -1 && endQuote != -1) {
+                                    name = roomBlock.substring(startQuote + 1, endQuote);
+                                }
+                            }
+
+                            if (isAIIndex != -1) {
+                                int colonIndex = roomBlock.indexOf(":", isAIIndex);
+                                String boolString = roomBlock.substring(colonIndex + 1).split(",|\\}")[0].trim();
+                                isAI = boolString.equals("true");
+                            }
+
+                            if (name != null) {
+                                ChatRoom room = new ChatRoom(name, isAI, "");
+                                data.getChatrooms().add(room);
+                            }
                         }
                     }
                 }
@@ -103,7 +141,6 @@ public class DataUtils {
         return data;
     }
 
-
     public static void saveData(DataParser data) {
         try (BufferedWriter writer = Files.newBufferedWriter(Paths.get(DATA_FILE))) {
             writer.write("{\n  \"users\": [\n");
@@ -113,16 +150,8 @@ public class DataUtils {
                 User user = users.get(i);
                 writer.write("    {\n");
                 writer.write("      \"username\": \"" + user.getUsername() + "\",\n");
-                writer.write("      \"passwordHash\": \"" + user.getPasswordHash() + "\",\n");
-                writer.write("      \"chatrooms\": [");
-
-                List<String> rooms = user.getChatrooms();
-                for (int j = 0; j < rooms.size(); j++) {
-                    writer.write("\"" + rooms.get(j) + "\"");
-                    if (j < rooms.size() - 1) writer.write(", ");
-                }
-
-                writer.write("]\n    }");
+                writer.write("      \"passwordHash\": \"" + user.getPasswordHash() + "\"\n");
+                writer.write("    }");
                 if (i < users.size() - 1) writer.write(",");
                 writer.write("\n");
             }
@@ -134,8 +163,9 @@ public class DataUtils {
                 ChatRoom room = chatrooms.get(i);
                 writer.write("    {\n");
                 writer.write("      \"name\": \"" + room.getName() + "\",\n");
-                writer.write("      \"isAI\": " + room.isAI() + ",\n");
-                writer.write("      \"prompt\": \"" + room.getPrompt().replace("\"", "\\\"") + "\"\n");
+                writer.write("      \"participants\": [],\n"); // simplificação
+                writer.write("      \"messages\": [],\n");     // simplificação
+                writer.write("      \"isAI\": " + room.isAI() + "\n");
                 writer.write("    }");
 
                 if (i < chatrooms.size() - 1) writer.write(",");

@@ -13,12 +13,20 @@
     {
       "name": "geral",
       "participants": [],
-      "messages": []
+      "messages": [],
+      "isAI" : false
     },
     {
       "name": "futebol",
       "participants": [],
-      "messages": []
+      "messages": [],
+      "isAI" : false
+    },
+    {
+      "name": "Bot",
+      "participants": [],
+      "messages": [],
+      "isAI": true
     }
   ]
 }

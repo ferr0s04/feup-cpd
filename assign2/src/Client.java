@@ -1,23 +1,25 @@
+import javax.net.ssl.*;
 import java.io.*;
-import java.net.*;
+import java.security.KeyStore;
 import java.util.concurrent.Executors;
 
 public class Client {
     private static final int MAX_ATTEMPTS = 10;
     private static final int WAIT_TIME = 1000;
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         if (args.length != 4) {
-            System.out.println("Usage: java Client <serverAddr> <port> <username> <password>");
+            System.out.println("Usage: java Client <serverAddr> <port> <keystore> <password>");
             return;
         }
 
         String serverAddress = args[0];
         int port = Integer.parseInt(args[1]);
-        String username = args[2];
-        String password = args[3];
+        String keystorePath = args[2];
+        String keystorePassword = args[3];
 
-        Socket socket = connectWithRetry(serverAddress, port);
+
+        SSLSocket socket = createSSLSocket(serverAddress, port, keystorePath, keystorePassword);
         if (socket == null) {
             System.out.println("Could not connect to the server after multiple attempts. Exiting...");
             return;
@@ -28,21 +30,18 @@ public class Client {
                 BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                 BufferedReader console = new BufferedReader(new InputStreamReader(System.in))
         ) {
-            // 1) Authenticate
-            writer.println("AUTH " + username + " " + password);
-            String authResponse = reader.readLine();
-            if (!"AUTH_OK".equals(authResponse)) {
-                System.out.println("Authentication failed: " + authResponse);
-                return;
-            } else {
-                System.out.println("Authentication successful.");
-            }
+            // Identificação via certificado
+            SSLSession session = socket.getSession();
+            String clientName = extractCN(session.getLocalPrincipal().getName());
+            System.out.println("Authenticated as: " + clientName);
 
-            // 2) Start background thread to print incoming messages
+            // Thread para mensagens recebidas
+            // fix here, call executor once and call submit for loop
             Executors.newSingleThreadExecutor().submit(() -> {
                 try {
                     String line;
                     while ((line = reader.readLine()) != null) {
+                        if (line.startsWith(clientName + ": ")) continue;
                         System.out.println(line);
                     }
                 } catch (IOException e) {
@@ -50,17 +49,12 @@ public class Client {
                 }
             });
 
-            // 3) Interactive console loop
+            // Loop interativo
             System.out.println("Enter commands or messages:");
             String input;
             while ((input = console.readLine()) != null) {
                 if (input.trim().isEmpty()) continue;
-                // User can type:
-                // /list                      -> LIST_ROOMS
-                // /enter <room>              -> ENTER <room>
-                // /create <room>             -> CREATE_ROOM <room>
-                // /createai <room> <prompt>  -> CREATE_ROOM <room> AI <prompt>
-                // otherwise, it's a message: MSG <currentRoom> <text>
+
                 if (input.startsWith("/")) {
                     String[] parts = input.split(" ", 3);
                     switch (parts[0]) {
@@ -76,11 +70,13 @@ public class Client {
                         case "/createai":
                             if (parts.length == 3) writer.println("CREATE_ROOM " + parts[1] + " AI " + parts[2]);
                             break;
+                        case "/leave":
+                            writer.println("LEAVE");
+                            break;
                         default:
-                            System.out.println("Unknown command");
+                            System.out.println("Unknown command. Try again.");
                     }
                 } else {
-                    // default: send as chat message to current room (server tracks currentRoom)
                     writer.println("MSG " + input);
                 }
             }
@@ -96,15 +92,17 @@ public class Client {
         }
     }
 
-    private static Socket connectWithRetry(String serverAddress, int port) {
+    private static SSLSocket connectWithRetry(String serverAddress, int port, String keystorePath, String keystorePassword) {
         int attempt = 0;
         int waitTime = WAIT_TIME;
 
         while (attempt < MAX_ATTEMPTS) {
             try {
                 System.out.println("Attempting to connect to server (Attempt " + (attempt + 1) + ")...");
-                return new Socket(serverAddress, port);
-            } catch (IOException e) {
+                SSLSocket socket = createSSLSocket(serverAddress, port, keystorePath, keystorePassword);
+                socket.startHandshake(); // força o TLS handshake
+                return socket;
+            } catch (Exception e) {
                 System.out.println("Connection failed: " + e.getMessage());
                 attempt++;
                 if (attempt >= MAX_ATTEMPTS) {
@@ -122,91 +120,36 @@ public class Client {
         }
         return null;
     }
-}
 
+    private static SSLSocket createSSLSocket(String host, int port, String keystorePath, String keystorePassword) throws Exception {
+        // Load client keystore (for authentication)
+        KeyStore keyStore = KeyStore.getInstance("JKS");
+        keyStore.load(new FileInputStream(keystorePath), keystorePassword.toCharArray());
 
+        KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
+        kmf.init(keyStore, keystorePassword.toCharArray());
 
+        // Load truststore (to verify the server's certificate)
+        KeyStore trustStore = KeyStore.getInstance("JKS");
+        trustStore.load(new FileInputStream(keystorePath), keystorePassword.toCharArray()); // Use your actual truststore password
 
+        TrustManagerFactory tmf = TrustManagerFactory.getInstance("SunX509");
+        tmf.init(trustStore);
 
-/*
-public class Client {
-    private static final int MAX_ATTEMPTS = 10;
-    private static final int WAIT_TIME = 1000;
+        // Initialize SSL context with both
+        SSLContext sslContext = SSLContext.getInstance("TLS");
+        sslContext.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
 
-    public static void main(String[] args) {
-        if (args.length < 4) {
-            System.out.println("Usage: java Client <addr> <port> <op> <id> [<val>]");
-            return;
-        }
-
-        String serverAddress = args[0];
-        int port = Integer.parseInt(args[1]);
-        String operation = args[2];
-        int sensorId = Integer.parseInt(args[3]);
-
-        Socket socket = connectWithRetry(serverAddress, port);
-        if (socket == null) {
-            System.out.println("Could not connect to the server after multiple attempts. Exiting...");
-            return;
-        }
-
-        try (
-                PrintWriter writer = new PrintWriter(socket.getOutputStream(), true);
-                BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()))
-        ) {
-            if (operation.equals("put") && args.length == 5) {
-                float value = Float.parseFloat(args[4]);
-                String message = "put " + sensorId + " " + value;
-                writer.println(message);
-                System.out.println("Sent: " + message);
-                Thread.sleep(1000);
-            } else if (operation.equals("get")) {
-                String message = "get " + sensorId;
-                writer.println(message);
-                System.out.println("Sent: " + message);
-                String response = reader.readLine();
-                if (response != null) {
-                    System.out.println("Response: " + response);
-                } else {
-                    System.out.println("No response received from server.");
-                }
-            }
-        } catch (IOException | InterruptedException e) {
-            System.out.println("Error: " + e.getMessage());
-        } finally {
-            try {
-                socket.close();
-            } catch (IOException e) {
-                System.out.println("Error closing socket: " + e.getMessage());
-            }
-        }
+        SSLSocketFactory socketFactory = sslContext.getSocketFactory();
+        return (SSLSocket) socketFactory.createSocket(host, port);
     }
 
-    private static Socket connectWithRetry(String serverAddress, int port) {
-        int attempt = 0;
-        int waitTime = WAIT_TIME;
-
-        while (attempt < MAX_ATTEMPTS) {
-            try {
-                System.out.println("Attempting to connect to server (Attempt " + (attempt + 1) + ")...");
-                return new Socket(serverAddress, port);
-            } catch (IOException e) {
-                System.out.println("Connection failed: " + e.getMessage());
-                attempt++;
-                if (attempt >= MAX_ATTEMPTS) {
-                    return null;
-                }
-                try {
-                    System.out.println("Retrying in " + waitTime + "ms...");
-                    Thread.sleep(waitTime);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    return null;
-                }
-                waitTime = waitTime * 2;
+    private static String extractCN(String dn) {
+        for (String part : dn.split(",")) {
+            if (part.trim().startsWith("CN=")) {
+                return part.trim().substring(3);
             }
         }
-        return null;
+        return "Unknown";
     }
 }
-*/

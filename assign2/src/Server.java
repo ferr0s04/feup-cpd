@@ -1,15 +1,16 @@
+import javax.net.ssl.*;
 import java.io.*;
-import java.net.*;
+import java.security.KeyStore;
+import java.security.cert.X509Certificate;
 import java.util.*;
 import java.util.concurrent.locks.ReentrantLock;
+
 import rooms.Session;
 import rooms.ChatRoom;
-import auth.Authenticator;
 import data.DataUtils;
 import data.DataParser;
 
 public class Server {
-    // --- Global shared data ---
     private static final ReentrantLock roomsLock = new ReentrantLock();
     private static final Map<String, ChatRoom> rooms = new HashMap<>();
 
@@ -18,71 +19,69 @@ public class Server {
             System.out.println("Usage: java Server <port>");
             return;
         }
+
         int port = Integer.parseInt(args[0]);
-        String usersFile = "data/data.json";
 
-        // Initialize authenticator
-        Authenticator authenticator;
-        try {
-            authenticator = new Authenticator(usersFile);
-        } catch (IOException e) {
-            System.err.println("Failed to load user database: " + e.getMessage());
-            return;
-        }
-
-        // --- STARTUP: initialize rooms from data.json ---
+        // Carrega salas a partir do JSON
         roomsLock.lock();
         try {
-            DataParser data = DataUtils.loadData(); // Carrega os dados do arquivo JSON
-            List<ChatRoom> chatroomsFromData = data.getChatrooms();  // Obtem as chatrooms do JSON
-            for (ChatRoom roomData : chatroomsFromData) {
-                // Cria a sala de chat com os dados carregados
+            DataParser data = DataUtils.loadData();
+            for (ChatRoom roomData : data.getChatrooms()) {
                 ChatRoom chatRoom = new ChatRoom(roomData.getName(), roomData.isAI(), roomData.getPrompt());
-                rooms.put(chatRoom.getName(), chatRoom);  // Adiciona a sala ao mapa
+                rooms.put(chatRoom.getName(), chatRoom);
             }
         } finally {
             roomsLock.unlock();
         }
 
-        // --- Start listening for clients ---
-        try (ServerSocket serverSocket = new ServerSocket(port)) {
-            System.out.println("Server listening on port " + port);
+        // Cria o servidor TLS
+        try {
+            SSLServerSocket serverSocket = createSSLServerSocket(port);
+            System.out.println("TLS server listening on port " + port);
+
             while (true) {
-                Socket clientSock = serverSocket.accept();
-                Thread.startVirtualThread(() -> handleClientConnection(clientSock, authenticator));
+                SSLSocket clientSock = (SSLSocket) serverSocket.accept();
+                Thread.startVirtualThread(() -> handleClientConnection(clientSock));
             }
-        } catch (IOException e) {
+
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    private static void handleClientConnection(Socket sock, Authenticator auth) {
-        Session session = null;
-        try {
-            session = new Session(sock);
+    private static SSLServerSocket createSSLServerSocket(int port) throws Exception {
+        KeyStore keyStore = KeyStore.getInstance("JKS");
+        keyStore.load(new FileInputStream("server-keystore.jks"), "password".toCharArray());
 
-            // --- AUTHENTICATION PHASE ---
-            String authLine;
-            while ((authLine = session.in.readLine()) != null) {
-                if (!authLine.startsWith("AUTH ")) {
-                    session.out.println("AUTH_FAIL invalid command");
-                    continue;
-                }
-                String[] tokens = authLine.split(" ", 3);
-                if (tokens.length < 3) {
-                    session.out.println("AUTH_FAIL missing credentials");
-                    continue;
-                }
-                String user = tokens[1];
-                String pass = tokens[2];
-                if (!auth.authenticate(user, pass)) {
-                    session.out.println("AUTH_FAIL invalid credentials");
-                } else {
-                    session.username = user;
-                    session.out.println("AUTH_OK");
-                    break;
-                }
-            }
+        KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
+        kmf.init(keyStore, "password".toCharArray());
+
+        KeyStore trustStore = KeyStore.getInstance("JKS");
+        trustStore.load(new FileInputStream("server-truststore.jks"), "password".toCharArray());
+
+        TrustManagerFactory tmf = TrustManagerFactory.getInstance("SunX509");
+        tmf.init(trustStore);
+
+        SSLContext sslContext = SSLContext.getInstance("TLS");
+        sslContext.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+
+        SSLServerSocketFactory ssf = sslContext.getServerSocketFactory();
+        SSLServerSocket serverSocket = (SSLServerSocket) ssf.createServerSocket(port);
+
+        serverSocket.setNeedClientAuth(true); // exigir certificado do cliente
+        return serverSocket;
+    }
+
+    private static void handleClientConnection(SSLSocket sock) {
+        Session session = null;
+
+        try {
+            sock.startHandshake(); // força handshake e valida o certificado do cliente
+            String username = extractClientCN(sock);
+
+            session = new Session(sock);
+            session.username = username;
+            session.out.println("AUTH_OK");
 
             // --- CHAT LOOP ---
             String line;
@@ -108,18 +107,33 @@ public class Server {
                     case "CREATE_ROOM":
                         handleCreateRoom(session, parts);
                         break;
+                    case "LEAVE":
+                        handleLeave(session);
+                        break;
                     default:
                         session.out.println("ERROR Unknown command: " + cmd);
                 }
             }
-        } catch (IOException e) {
-            System.out.println("Client disconnected: " + e.getMessage());
+        } catch (Exception e) {
+            System.out.println("Client connection failed: " + e.getMessage());
         } finally {
             if (session != null) session.close();
         }
     }
 
-    // Utility: safely get or create a room
+    private static String extractClientCN(SSLSocket socket) throws SSLPeerUnverifiedException {
+        SSLSession session = socket.getSession();
+        X509Certificate cert = (X509Certificate) session.getPeerCertificates()[0];
+        String dn = cert.getSubjectX500Principal().getName();
+        for (String part : dn.split(",")) {
+            if (part.trim().startsWith("CN=")) {
+                return part.trim().substring(3);
+            }
+        }
+        return "Unknown";
+    }
+
+    // Métodos auxiliares para manipular salas e mensagens
     private static ChatRoom getOrCreateRoom(String name, boolean isAI, String prompt) {
         roomsLock.lock();
         try {
@@ -129,7 +143,6 @@ public class Server {
         }
     }
 
-    // Utility: handle ENTER command
     private static void handleEnter(Session session, String roomName) {
         if (roomName == null || roomName.trim().isEmpty()) {
             session.out.println("ERROR Room name required");
@@ -137,20 +150,12 @@ public class Server {
         }
 
         ChatRoom newRoom = getOrCreateRoom(roomName, false, null);
-
-        // Leave old room if any
-        if (session.currentRoom != null) {
-            session.currentRoom.leave(session);
-        }
-
-        // Join new room
+        if (session.currentRoom != null) session.currentRoom.leave(session);
         newRoom.join(session);
         session.currentRoom = newRoom;
-
-        session.out.println("ENTERED " + roomName);
+        session.out.println("YOU HAVE ENTERED " + roomName);
     }
 
-    // Utility: handle MSG command
     private static void handleMsg(Session session, String message) {
         if (message == null || message.trim().isEmpty()) {
             session.out.println("ERROR Cannot send empty message");
@@ -166,7 +171,6 @@ public class Server {
         room.broadcast(session.username + ": " + message);
     }
 
-    // Utility: handle CREATE_ROOM command
     private static void handleCreateRoom(Session session, String[] parts) {
         if (parts.length < 2) {
             session.out.println("ERROR Room name required");
@@ -196,5 +200,16 @@ public class Server {
         } finally {
             roomsLock.unlock();
         }
+    }
+
+    private static void handleLeave(Session session) {
+        ChatRoom room = session.currentRoom;
+        if (room == null) {
+            session.out.println("ERROR You’re not in any room");
+            return;
+        }
+        room.leave(session);
+        session.currentRoom = null;
+        session.out.println("YOU HAVE LEFT " + room.getName());
     }
 }

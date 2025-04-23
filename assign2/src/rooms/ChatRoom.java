@@ -22,11 +22,11 @@ public class ChatRoom {
         lock.lock();
         try {
             members.add(s);
-            s.out.println("ROOM_JOINED " + name);
+            s.out.println("---------------------------------- " + "JOINED ROOM: " + name + " ----------------------------------");
             for (String msg : history) {
-                s.out.println("ROOM_MSG " + name + " " + msg);
+                s.out.println(msg);
             }
-            broadcast("[" + s.username + " enters the room]");
+            broadcast("[" + s.username + " entered the room]");
         } finally {
             lock.unlock();
         }
@@ -36,7 +36,7 @@ public class ChatRoom {
         lock.lock();
         try {
             members.remove(s);
-            broadcast("[" + s.username + " leaves the room]");
+            broadcast("[" + s.username + " left the room]");
         } finally {
             lock.unlock();
         }
@@ -47,7 +47,7 @@ public class ChatRoom {
         try {
             history.add(msg);
             for (Session s : members) {
-                s.out.println("ROOM_MSG " + name + " " + msg);
+                s.out.println(msg);
             }
 
             if (isAI) {
