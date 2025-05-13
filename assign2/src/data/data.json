@@ -2,11 +2,23 @@
   "users": [
     {
       "username": "Alice",
-      "passwordHash": "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8"
+      "passwordHash": "4e40e8ffe0ee32fa53e139147ed559229a5930f89c2204706fc174beb36210b3"
     },
     {
       "username": "Bob",
       "passwordHash": "8d059c3640b97180dd2ee453e20d34ab0cb0f2eccbe87d01915a8e578a202b11"
+    },
+    {
+      "username": "Ferros",
+      "passwordHash": "b838bc250d259674a72c875f7599914ae9090deaf4cc4b8a74adf9e4a3fd26ef"
+    },
+    {
+      "username": "Castro",
+      "passwordHash": "34d32e3b8517a08f537c46602b523665652c34139b9f14fde389479a2e0c014c"
+    },
+    {
+      "username": "Pedro",
+      "passwordHash": "2702cb34ee041711b9df0c67a8d5c9de02110c80e3fc966ba8341456dbc9ef2b"
     }
   ],
   "chatrooms": [

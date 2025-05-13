@@ -78,6 +78,13 @@ public class Server {
 
                 String username = loginParts[1];
                 String password = loginParts[2];
+
+                AuthenticationHandler auth = new AuthenticationHandler("data/data.json");
+                if (!auth.authenticate(username, password)) {
+                    session.out.println("AUTH_FAIL invalid credentials");
+                    return;
+                }
+
                 session.setUsername(username);
 
                 // Gera novo token
@@ -91,7 +98,6 @@ public class Server {
                 }
 
                 session.out.println("TOKEN:" + token);
-                // Verificar user e pass antes de enviar AUTH_OK
                 session.out.println("AUTH_OK");
 
             } else if (loginParts[0].equals("RESUME_SESSION")) {
