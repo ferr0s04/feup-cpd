@@ -1,29 +1,130 @@
 package auth;
 
 import java.io.*;
-import java.util.*;
 import java.security.KeyStore;
-import java.security.Principal;
-import java.security.cert.Certificate;
-import java.security.cert.X509Certificate;
-import javax.security.auth.x500.X500Principal;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import javax.net.ssl.*;
+import java.util.*;
+
+import data.DataParser;
+import data.DataUtils;
+import data.User;
 
 public class AuthenticationHandler {
     private static final int MAX_ATTEMPTS = 10;
     private static final int WAIT_TIME = 1000;
-    private static final String TRUSTSTORE_PATH = "certs/server-truststore.jks";
+    private static final String SERVER_KEYSTORE_PATH = "auth/certs/server-keystore.jks";
+    private static final String TRUSTSTORE_PATH = "auth/certs/server-truststore.jks";
     private static final String TRUSTSTORE_PASSWORD = "password";
 
-    public static SSLSocket connectWithRetry(String serverAddress, int port, String keystorePath, String keystorePassword, String truststorePath, String truststorePassword) {
+    private final Map<String, String> userPasswords = new HashMap<>();      // username -> passwordHash
+    private final Map<String, List<String>> userChatrooms = new HashMap<>(); // username -> chatrooms
+    private final String filePath;
+    private DataParser data;
+
+    public AuthenticationHandler(String filePath) {
+        this.filePath = filePath;
+        loadUsers();
+    }
+
+
+    private void loadUsers() {
+        data = DataUtils.loadData();
+
+        for (User user : data.getUsers()) {
+            userPasswords.put(user.getUsername(), user.getPasswordHash());
+            userChatrooms.put(user.getUsername(), user.getChatrooms());
+        }
+    }
+
+    public boolean authenticate(String username, String password) {
+        if (!userPasswords.containsKey(username)) return false;
+
+        String storedHash = userPasswords.get(username);
+        String inputHash = hash(password);
+        return storedHash.equals(inputHash);
+    }
+
+    public boolean register(String username, String password, List<String> chatrooms) {
+        if (userPasswords.containsKey(username)) {
+            System.out.println("User already exists!");
+            return false;
+        }
+
+        String passwordHash = hash(password);
+        userPasswords.put(username, passwordHash);
+        userChatrooms.put(username, chatrooms);
+
+        User newUser = new User(username, passwordHash, chatrooms);
+        data.getUsers().add(newUser);
+
+        DataUtils.saveData(data);
+        return true;
+    }
+
+    private String hash(String password) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] hashBytes = md.digest(password.getBytes());
+
+            // converte para string hexadecimal
+            StringBuilder sb = new StringBuilder();
+            for (byte b : hashBytes) {
+                sb.append(String.format("%02x", b));
+            }
+
+            return sb.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("SHA-256 algorithm not found");
+        }
+    }
+
+
+    public static SSLSocket connectToServerWithTruststore(String serverAddress, int port,
+                                                          String truststorePath, String truststorePassword) {
+        try {
+            System.out.println("Loading truststore...");
+            // Load truststore (to verify server certificate)
+            KeyStore truststore = KeyStore.getInstance("JKS");
+            truststore.load(new FileInputStream(truststorePath), truststorePassword.toCharArray());
+
+            TrustManagerFactory tmf = TrustManagerFactory.getInstance("SunX509");
+            tmf.init(truststore);
+
+            SSLContext context = SSLContext.getInstance("TLS");
+            context.init(null, tmf.getTrustManagers(), null);
+
+            SSLSocketFactory factory = context.getSocketFactory();
+            System.out.println("Connecting to server...");
+            SSLSocket socket = (SSLSocket) factory.createSocket(serverAddress, port);
+
+            System.out.println("Enabled TLS protocols: " + Arrays.toString(socket.getEnabledProtocols()));
+
+            socket.startHandshake();
+            System.out.println("Handshake complete.");
+
+            return socket;
+
+        } catch (Exception e) {
+            System.err.println("Error during TLS connection setup: " + e.getMessage());
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    /**
+     * Connects to the TLS server using only the truststore (no client certificate).
+     */
+    public static SSLSocket connectWithRetry(String serverAddress, int port, String truststorePath, String truststorePassword) {
         int attempt = 0;
         int waitTime = WAIT_TIME;
 
         while (attempt < MAX_ATTEMPTS) {
             try {
                 System.out.println("Attempting to connect to server (Attempt " + (attempt + 1) + ")...");
-                SSLSocket socket = createSSLSocket(serverAddress, port, keystorePath, keystorePassword, truststorePath, truststorePassword);
-                socket.startHandshake(); // força o TLS handshake
+                SSLSocket socket = createSSLSocket(serverAddress, port, truststorePath, truststorePassword);
+                socket.startHandshake(); // Force TLS handshake
                 return socket;
             } catch (Exception e) {
                 System.out.println("Connection failed: " + e.getMessage());
@@ -45,172 +146,48 @@ public class AuthenticationHandler {
     }
 
     private static SSLSocket createSSLSocket(String host, int port,
-                                             String keystorePath, String keystorePassword,
                                              String truststorePath, String truststorePassword) throws Exception {
 
-        KeyStore keyStore = KeyStore.getInstance("JKS");
-        keyStore.load(new FileInputStream(keystorePath), keystorePassword.toCharArray());
-        KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
-        kmf.init(keyStore, keystorePassword.toCharArray());
-
+        // Only truststore (to validate server certificate)
         KeyStore trustStore = KeyStore.getInstance("JKS");
         trustStore.load(new FileInputStream(truststorePath), truststorePassword.toCharArray());
+
         TrustManagerFactory tmf = TrustManagerFactory.getInstance("SunX509");
         tmf.init(trustStore);
 
         SSLContext sslContext = SSLContext.getInstance("TLS");
-        sslContext.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+        sslContext.init(null, tmf.getTrustManagers(), null); // No key managers (client has no cert)
 
         SSLSocketFactory socketFactory = sslContext.getSocketFactory();
         SSLSocket socket = (SSLSocket) socketFactory.createSocket(host, port);
-        socket.setEnabledProtocols(new String[] { "TLSv1.2" });
+        socket.setEnabledProtocols(new String[]{"TLSv1.2"});
 
         return socket;
     }
 
+    /**
+     * Creates an SSLServerSocket that accepts connections using only server authentication.
+     */
     public static SSLServerSocket createSSLServerSocket(int port) throws Exception {
-        KeyStore keyStore = KeyStore.getInstance("JKS");
-        keyStore.load(new FileInputStream("auth/certs/server-keystore.jks"), TRUSTSTORE_PASSWORD.toCharArray());
+        // Load server keystore and truststore
+        KeyStore keystore = KeyStore.getInstance("JKS");
+        keystore.load(new FileInputStream("auth/certs/server-keystore.jks"), "password".toCharArray());
+
+        KeyStore truststore = KeyStore.getInstance("JKS");
+        truststore.load(new FileInputStream("auth/certs/server-truststore.jks"), "password".toCharArray());
 
         KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
-        kmf.init(keyStore, TRUSTSTORE_PASSWORD.toCharArray());
-
-        KeyStore trustStore = KeyStore.getInstance("JKS");
-        trustStore.load(new FileInputStream("auth/certs/server-truststore.jks"), TRUSTSTORE_PASSWORD.toCharArray());
+        kmf.init(keystore, "password".toCharArray());
 
         TrustManagerFactory tmf = TrustManagerFactory.getInstance("SunX509");
-        tmf.init(trustStore);
+        tmf.init(truststore);
 
-        SSLContext sslContext = SSLContext.getInstance("TLS");
-        sslContext.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+        SSLContext context = SSLContext.getInstance("TLS");
+        context.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
 
-        SSLServerSocketFactory ssf = sslContext.getServerSocketFactory();
-        SSLServerSocket serverSocket = (SSLServerSocket) ssf.createServerSocket(port);
+        SSLServerSocketFactory factory = context.getServerSocketFactory();
+        SSLServerSocket serverSocket = (SSLServerSocket) factory.createServerSocket(port);
 
-        serverSocket.setNeedClientAuth(true); // exigir certificado do cliente
         return serverSocket;
-    }
-
-    public static String extractCN(String dn) {
-        for (String part : dn.split(",")) {
-            if (part.trim().startsWith("CN=")) {
-                return part.trim().substring(3);
-            }
-        }
-        return "Unknown";
-    }
-
-    public static String extractClientCN(SSLSocket socket) throws SSLPeerUnverifiedException {
-        SSLSession session = socket.getSession();
-        X509Certificate cert = (X509Certificate) session.getPeerCertificates()[0];
-        String dn = cert.getSubjectX500Principal().getName();
-        for (String part : dn.split(",")) {
-            if (part.trim().startsWith("CN=")) {
-                return part.trim().substring(3);
-            }
-        }
-        return "Unknown";
-    }
-
-    // Função para rodar um comando keytool via ProcessBuilder
-    public static void runKeytoolCommand(String[] command) throws IOException, InterruptedException {
-        ProcessBuilder builder = new ProcessBuilder(command);
-        builder.inheritIO(); // Para que o output do comando apareça no terminal
-        Process process = builder.start();
-        int exitCode = process.waitFor();
-        if (exitCode != 0) {
-            throw new IOException("keytool command failed with exit code " + exitCode);
-        }
-    }
-
-    public static void generateUserCertificate(String username, String password) throws Exception {
-        String keystore = "auth/certs/keystore-" + username + ".jks";
-        String truststore = "auth/certs/truststore-" + username + ".jks";
-        String certFile = "auth/certs/cert-" + username + ".cer";
-        String alias = username;
-
-        // 1. Gera par de chaves e autoassina
-        runKeytoolCommand(new String[] {
-                "keytool", "-genkeypair", "-alias", alias, "-keyalg", "RSA", "-keysize", "2048",
-                "-keystore", keystore, "-storepass", password, "-keypass", password,
-                "-validity", "365", "-dname", "CN=" + username + ", OU=Dev, O=FEUP, L=Porto, ST=Porto, C=PT",
-        });
-
-        // 2. Exporta o certificado
-        runKeytoolCommand(new String[] {
-                "keytool", "-exportcert", "-alias", alias, "-keystore", keystore,
-                "-storepass", password, "-file", certFile
-        });
-
-        // 3. Cria truststore do cliente com seu próprio certificado
-        runKeytoolCommand(new String[] {
-                "keytool", "-importcert", "-noprompt", "-alias", alias, "-file", certFile,
-                "-keystore", truststore, "-storepass", password
-        });
-
-        // 4. Certifica-se de que o alias do servidor não existe no truststore
-        try {
-            runKeytoolCommand(new String[] {
-                    "keytool", "-delete", "-alias", "server-alias", "-keystore", truststore, "-storepass", password
-            });
-        } catch (IOException e) {
-            // Ignora o erro, se o alias não existir, o comando falhará, mas não faz mal.
-        }
-
-        // 5. Atualiza o truststore do cliente com o certificado do servidor
-        runKeytoolCommand(new String[] {
-                "keytool", "-importcert", "-noprompt", "-alias", "server",
-                "-file", "auth/certs/server-cert.cer", // Certificado do servidor que você precisa importar
-                "-keystore", truststore, "-storepass", password
-        });
-
-        // 6. Atualiza o truststore do servidor com o certificado do cliente
-        runKeytoolCommand(new String[] {
-                "keytool", "-importcert", "-noprompt", "-alias", alias, "-file", certFile,
-                "-keystore", "auth/certs/server-truststore.jks", "-storepass", TRUSTSTORE_PASSWORD
-        });
-    }
-
-    // Add the client's certificate to the server's truststore
-    public static void addCertificateToTruststore(SSLSocket sock) {
-        try {
-            SSLSession session = sock.getSession();
-            Certificate[] certs = session.getPeerCertificates();
-            X509Certificate clientCert = (X509Certificate) certs[0];
-
-            // Load the truststore
-            KeyStore truststore = KeyStore.getInstance("JKS");
-            FileInputStream fis = new FileInputStream(TRUSTSTORE_PATH);
-            truststore.load(fis, TRUSTSTORE_PASSWORD.toCharArray());
-            fis.close();
-
-            // Add the client's certificate to the truststore
-            X500Principal subjectPrincipal = clientCert.getSubjectX500Principal();
-            String subjectName = subjectPrincipal.getName();
-            String alias = subjectName.split(",")[0].split("=")[1]; // Extract CN
-            truststore.setCertificateEntry(alias, clientCert);
-
-            // Save the updated truststore
-            FileOutputStream fos = new FileOutputStream(TRUSTSTORE_PATH);
-            truststore.store(fos, TRUSTSTORE_PASSWORD.toCharArray());
-            fos.close();
-
-            System.out.println("Certificate added to truststore: " + alias);
-        } catch (Exception e) {
-            System.out.println("Failed to add certificate to truststore: " + e.getMessage());
-        }
-    }
-
-    public static void reloadTruststore() {
-        try {
-            KeyStore truststore = KeyStore.getInstance("JKS");
-            FileInputStream fis = new FileInputStream(TRUSTSTORE_PATH);
-            truststore.load(fis, TRUSTSTORE_PASSWORD.toCharArray());
-            fis.close();
-            // Reload or update the SSL context if needed (this can be specific to your use case)
-            System.out.println("Truststore reloaded to recognize new certificates.");
-        } catch (Exception e) {
-            System.out.println("Failed to reload truststore: " + e.getMessage());
-        }
     }
 }

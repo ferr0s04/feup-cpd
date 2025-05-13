@@ -12,8 +12,12 @@ import auth.AuthenticationHandler;
 public class Server {
     private static final ReentrantLock roomsLock = new ReentrantLock();
     private static final Map<String, ChatRoom> rooms = new HashMap<>();
+    private static final Map<String, Session> activeSessions = new HashMap<>();
+    private static final Map<String, String> userTokens = new HashMap<>();
+    private static final ReentrantLock sessionLock = new ReentrantLock();
 
     public static void main(String[] args) {
+
         if (args.length != 1) {
             System.out.println("Usage: java Server <port>");
             return;
@@ -53,24 +57,81 @@ public class Server {
         Session session = null;
 
         try {
-            sock.startHandshake(); // Force handshake and validate the client's certificate
-            String username = AuthenticationHandler.extractClientCN(sock);
+            sock.startHandshake();
 
             session = new Session(sock);
-            session.username = username;
-            session.out.println("AUTH_OK");
+            String firstLine = session.in.readLine();
 
-            // Add the client's certificate to the server's truststore if it's a new user
-            AuthenticationHandler.addCertificateToTruststore(sock);
+            if (firstLine == null || firstLine.trim().isEmpty()) {
+                System.out.println("Client did not provide command");
+                return;
+            }
 
-            // Reload the truststore to recognize new certificates dynamically
-            AuthenticationHandler.reloadTruststore();
+            String[] loginParts = firstLine.split(" ");
+
+            // Processa LOGIN ou RESUME_SESSION
+            if (loginParts[0].equals("LOGIN")) {
+                if (loginParts.length < 3) {
+                    session.out.println("AUTH_FAIL invalid login format");
+                    return;
+                }
+
+                String username = loginParts[1];
+                String password = loginParts[2];
+                session.setUsername(username);
+
+                // Gera novo token
+                String token = UUID.randomUUID().toString();
+                sessionLock.lock();
+                try {
+                    userTokens.put(username, token);
+                    activeSessions.put(username, session);
+                } finally {
+                    sessionLock.unlock();
+                }
+
+                session.out.println("TOKEN:" + token);
+                // Verificar user e pass antes de enviar AUTH_OK
+                session.out.println("AUTH_OK");
+
+            } else if (loginParts[0].equals("RESUME_SESSION")) {
+                if (loginParts.length < 2) {
+                    session.out.println("AUTH_FAIL invalid session format");
+                    return;
+                }
+
+                String token = loginParts[1];
+                sessionLock.lock();
+                try {
+                    String username = null;
+                    for (Map.Entry<String, String> entry : userTokens.entrySet()) {
+                        if (entry.getValue().equals(token)) {
+                            username = entry.getKey();
+                            break;
+                        }
+                    }
+
+                    if (username != null) {
+                        session.setUsername(username);
+                        activeSessions.put(username, session);
+                        session.out.println("AUTH_OK");
+                    } else {
+                        session.out.println("AUTH_FAIL invalid token");
+                    }
+                } finally {
+                    sessionLock.unlock();
+                }
+            } else {
+                session.out.println("AUTH_FAIL invalid command");
+                return;
+            }
 
             // --- CHAT LOOP ---
             String line;
             while ((line = session.in.readLine()) != null) {
                 String[] parts = line.split(" ", 2);
                 String cmd = parts[0];
+
                 switch (cmd) {
                     case "LIST_ROOMS":
                         roomsLock.lock();
@@ -97,10 +158,19 @@ public class Server {
                         session.out.println("ERROR Unknown command: " + cmd);
                 }
             }
+
         } catch (Exception e) {
             System.out.println("Client connection failed: " + e.getMessage());
         } finally {
-            if (session != null) session.close();
+            if (session != null) {
+                session.close();
+                sessionLock.lock();
+                try {
+                    activeSessions.remove(session.getUsername());
+                } finally {
+                    sessionLock.unlock();
+                }
+            }
         }
     }
 
@@ -121,9 +191,9 @@ public class Server {
         }
 
         ChatRoom newRoom = getOrCreateRoom(roomName, false, null);
-        if (session.currentRoom != null) session.currentRoom.leave(session);
+        if (session.getCurrentRoom() != null) session.getCurrentRoom().leave(session);
         newRoom.join(session);
-        session.currentRoom = newRoom;
+        session.setCurrentRoom(newRoom);
         session.out.println("YOU HAVE ENTERED " + roomName);
     }
 
@@ -133,15 +203,15 @@ public class Server {
             return;
         }
 
-        ChatRoom room = session.currentRoom;
+        ChatRoom room = session.getCurrentRoom();
         if (room == null) {
             session.out.println("ERROR You are not in any room");
             return;
         }
 
-        room.broadcast(session.username + ": " + message);
+        room.broadcast(session.getUsername() + ": " + message);
 
-        DataUtils.addMessage(room.getName(), session.username + ": " + message);
+        DataUtils.addMessage(room.getName(), session.getUsername() + ": " + message);
     }
 
     private static void handleCreateRoom(Session session, String[] parts) {
@@ -167,7 +237,7 @@ public class Server {
             }
             ChatRoom room = new ChatRoom(roomName, isAI, prompt);
             rooms.put(roomName, room);
-            session.currentRoom = room;
+            session.setCurrentRoom(room);
             room.join(session);
             session.out.println("ROOM_CREATED " + roomName + (isAI ? " (AI)" : ""));
 
@@ -178,13 +248,13 @@ public class Server {
     }
 
     private static void handleLeave(Session session) {
-        ChatRoom room = session.currentRoom;
+        ChatRoom room = session.getCurrentRoom();
         if (room == null) {
             session.out.println("ERROR You’re not in any room");
             return;
         }
         room.leave(session);
-        session.currentRoom = null;
+        session.setCurrentRoom(null);
         session.out.println("YOU HAVE LEFT " + room.getName());
     }
 }

@@ -30,6 +30,38 @@ public class DataUtils {
 
             String content = json.toString();
 
+            if (content.contains("\"users\"")) {
+                int start = content.indexOf("[", content.indexOf("\"users\""));
+                int end = content.indexOf("]", start);
+                if (start != -1 && end != -1) {
+                    String userArray = content.substring(start + 1, end).trim();
+                    String[] userBlocks = userArray.split("\\},\\s*\\{");
+
+                    for (String userBlock : userBlocks) {
+                        userBlock = userBlock.replace("{", "").replace("}", "").trim();
+                        Map<String, String> fields = new HashMap<>();
+
+                        String[] entries = userBlock.split(",");
+                        for (String entry : entries) {
+                            String[] pair = entry.split(":", 2);
+                            if (pair.length != 2) continue;
+
+                            String key = pair[0].replaceAll("\"", "").trim();
+                            String value = pair[1].replaceAll("\"", "").trim();
+                            fields.put(key, value);
+                        }
+
+                        String username = fields.get("username");
+                        String passwordHash = fields.get("passwordHash");
+                        if (username != null && passwordHash != null) {
+                            User user = new User(username, passwordHash, new ArrayList<>());
+                            data.addUser(user);
+                        }
+                    }
+                }
+            }
+
+
             // --- CHATROOMS ---
             if (content.contains("\"chatrooms\"")) {
                 int chatroomStart = content.indexOf("\"chatrooms\"");

@@ -1,7 +1,7 @@
 ## Compiling
 PowerShell:  
 ```
-Get-ChildItem -Recurse -Filter *.java | ForEach-Object { javac -d ..\out $_.FullName }
+Get-ChildItem -Recurse -Filter *.java | ForEach-Object { javac $_.FullName }
 ```
 
 Unix:

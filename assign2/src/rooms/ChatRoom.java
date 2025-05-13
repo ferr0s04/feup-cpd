@@ -26,7 +26,7 @@ public class ChatRoom {
             for (String msg : history) {
                 s.out.println(msg);
             }
-            broadcast("[" + s.username + " entered the room]");
+            broadcast("[" + s.getUsername() + " entered the room]");
         } finally {
             lock.unlock();
         }
@@ -36,7 +36,7 @@ public class ChatRoom {
         lock.lock();
         try {
             members.remove(s);
-            broadcast("[" + s.username + " left the room]");
+            broadcast("[" + s.getUsername() + " left the room]");
         } finally {
             lock.unlock();
         }
@@ -84,10 +84,23 @@ public class ChatRoom {
         this.prompt = prompt;
     }
 
-    public List<String> getHistory() { return history; }
+    public List<String> getHistory() {
+        lock.lock();
+        try {
+            return new ArrayList<>(history);
+        } finally {
+            lock.unlock();
+        }
+    }
 
     public void setHistory(List<String> msgs) {
-        history.clear();
-        history.addAll(msgs);
+        lock.lock();
+        try {
+            history.clear();
+            history.addAll(msgs);
+        } finally {
+            lock.unlock();
+        }
     }
+
 }
