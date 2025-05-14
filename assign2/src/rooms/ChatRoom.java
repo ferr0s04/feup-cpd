@@ -3,6 +3,8 @@ package rooms;
 import java.util.*;
 import java.util.concurrent.locks.ReentrantLock;
 
+import ai.*;
+
 public class ChatRoom {
     public String name;
     public boolean isAI;
@@ -52,6 +54,7 @@ public class ChatRoom {
 
             if (isAI) {
                 // TODO: Call LLM process and broadcast response as "Bot: ..."
+                Pompter prompter = new Prompter();
             }
 
         } finally {
