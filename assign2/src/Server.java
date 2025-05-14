@@ -142,26 +142,49 @@ public class Server {
                     case "LIST_ROOMS":
                         roomsLock.lock();
                         try {
-                            session.out.println("ROOM_LIST " + String.join(",", rooms.keySet()));
+                            StringBuilder response = new StringBuilder("ROOM_LIST ");
+                            for (String roomName : rooms.keySet()) {
+                                response.append(roomName).append(",");
+                            }
+                            if (response.charAt(response.length() - 1) == ',') {
+                                response.setLength(response.length() - 1);
+                            }
+                            session.out.println(response.toString());
+                            session.out.flush(); // Força envio imediato
                         } finally {
                             roomsLock.unlock();
                         }
                         break;
+
                     case "ENTER":
-                        if (parts.length >= 2) handleEnter(session, parts[1]);
-                        else session.out.println("ERROR Room name required");
+                        if (parts.length < 2) {
+                            session.out.println("ERROR Room name required");
+                            session.out.flush();
+                        } else {
+                            handleEnter(session, parts[1]);
+                        }
                         break;
-                    case "MSG":
-                        handleMsg(session, parts.length > 1 ? parts[1] : "");
-                        break;
+
                     case "CREATE_ROOM":
-                        handleCreateRoom(session, parts);
+                        if (parts.length < 2) {
+                            session.out.println("ERROR Room name required");
+                            session.out.flush();
+                        } else {
+                            handleCreateRoom(session, parts);
+                        }
                         break;
+
                     case "LEAVE":
                         handleLeave(session);
                         break;
+
+                    case "MSG":
+                        handleMsg(session, parts.length > 1 ? parts[1] : "");
+                        break;
+
                     default:
                         session.out.println("ERROR Unknown command: " + cmd);
+                        session.out.flush();
                 }
             }
 

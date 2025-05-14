@@ -16,6 +16,7 @@ public class Client {
     private static BufferedReader console;
     private static volatile String sessionToken = null;
     private static String username;
+    private static String password;
     private static String serverAddress;
     private static int port;
     private static final String TRUSTSTORE_PATH = "./auth/certs/server-truststore.jks";
@@ -29,24 +30,35 @@ public class Client {
 
         // REGISTRATION MODE
         if (args.length < 3) {
-            System.out.println("---- REGISTRATION MODE ----");
-            System.out.print("Choose a username: ");
-            username = scanner.nextLine().trim();
+            boolean registrationSuccess = false;
 
-            System.out.print("Choose a password: ");
-            String password = scanner.nextLine().trim();
+            while (!registrationSuccess) {
+                System.out.println("---- REGISTRATION MODE ----");
+                System.out.print("Choose a username: ");
+                username = scanner.nextLine().trim();
 
-            System.out.print("Confirm your password: ");
-            String confirmPassword = scanner.nextLine().trim();
+                System.out.print("Choose a password: ");
+                String password = scanner.nextLine().trim();
 
-            if (!password.equals(confirmPassword)) {
-                System.out.println("Passwords do not match. Please try again.");
-                return;
+                System.out.print("Confirm your password: ");
+                String confirmPassword = scanner.nextLine().trim();
+
+                if (!password.equals(confirmPassword)) {
+                    System.out.println("Passwords do not match. Please try again.\n");
+                    continue;
+                }
+
+                // Save user
+                AuthenticationHandler authHandler = new AuthenticationHandler("data/data.json");
+                if (!authHandler.register(username, password)) {
+                    System.out.println("Registration failed. User already exists.\n");
+                    continue;
+                }
+
+                registrationSuccess = true;
+                System.out.println("Registration successful!");
+                System.out.println("Now run the client with: java Client <serverAddr> <port> <username> <password>");
             }
-
-            // Here you could store the user locally or notify the server to register (not shown)
-            System.out.println("User registered successfully (client-side only).");
-            System.out.println("Now run the client with: java Client <serverAddr> <port> <username> <password>");
             return;
         }
 
@@ -59,7 +71,7 @@ public class Client {
         serverAddress = args[0];
         port = Integer.parseInt(args[1]);
         username = args[2];
-        String password = args[3];
+        password = args[3];
 
         console = new BufferedReader(new InputStreamReader(System.in));
 
@@ -72,45 +84,68 @@ public class Client {
 
         System.out.println("Enter commands or messages:");
         String input;
+
         while ((input = console.readLine()) != null) {
             if (input.trim().isEmpty()) continue;
 
             if (input.startsWith("/")) {
                 String[] parts = input.split(" ", 3);
+                String command;
+
                 switch (parts[0]) {
                     case "/list":
-                        ioLock.lock();
-                        try { writer.println("LIST_ROOMS"); } finally { ioLock.unlock(); }
+                        command = "LIST_ROOMS";
                         break;
                     case "/enter":
-                        if (parts.length >= 2) {
-                            ioLock.lock();
-                            try { writer.println("ENTER " + parts[1]); } finally { ioLock.unlock(); }
+                        if (parts.length < 2) {
+                            System.out.println("Usage: /enter <room_name>");
+                            continue;
                         }
+                        command = "ENTER " + parts[1];
                         break;
                     case "/create":
-                        if (parts.length >= 2) {
-                            ioLock.lock();
-                            try { writer.println("CREATE_ROOM " + parts[1]); } finally { ioLock.unlock(); }
+                        if (parts.length < 2) {
+                            System.out.println("Usage: /create <room_name>");
+                            continue;
                         }
+                        command = "CREATE_ROOM " + parts[1];
                         break;
                     case "/createai":
-                        if (parts.length == 3) {
-                            ioLock.lock();
-                            try { writer.println("CREATE_ROOM " + parts[1] + " AI " + parts[2]); }
-                            finally { ioLock.unlock(); }
+                        if (parts.length != 3) {
+                            System.out.println("Usage: /createai <room_name> <prompt>");
+                            continue;
                         }
+                        command = "CREATE_ROOM " + parts[1] + " AI " + parts[2];
                         break;
                     case "/leave":
-                        ioLock.lock();
-                        try { writer.println("LEAVE"); } finally { ioLock.unlock(); }
+                        command = "LEAVE";
                         break;
                     default:
-                        System.out.println("Unknown command.");
+                        System.out.println("Unknown command. Available commands:");
+                        System.out.println("/list - List all rooms");
+                        System.out.println("/enter <room> - Enter a room");
+                        System.out.println("/create <room> - Create a new room");
+                        System.out.println("/createai <room> <prompt> - Create an AI room");
+                        System.out.println("/leave - Leave current room");
+                        continue;
+                }
+
+                // Lock apenas na escrita
+                ioLock.lock();
+                try {
+                    writer.println(command);
+                    writer.flush();
+                } finally {
+                    ioLock.unlock();
                 }
             } else {
                 ioLock.lock();
-                try { writer.println("MSG " + input); } finally { ioLock.unlock(); }
+                try {
+                    writer.println("MSG " + input);
+                    writer.flush();
+                } finally {
+                    ioLock.unlock();
+                }
             }
         }
 
@@ -190,23 +225,16 @@ public class Client {
     private static void listenToServer() {
         try {
             String line;
-            while (true) {
-                ioLock.lock();
-                try {
-                    // Lock while reading from the shared reader
-                    line = reader.readLine();
-                } finally {
-                    ioLock.unlock();
-                }
-
-                if (line == null) break; // connection closed
+            while (running) {
+                line = reader.readLine();
+                if (line == null) break; // conexão fechada
 
                 if (line.startsWith(username + ": ")) continue;
                 System.out.println(line);
             }
         } catch (IOException e) {
             if (running) {
-                System.out.println("Disconnected from server. Attempting to reconnect...");
+                System.out.println("Desconectado do servidor. Tentando reconectar...");
 
                 while (running) {
                     try {
@@ -215,12 +243,11 @@ public class Client {
 
                     ioLock.lock();
                     try {
-                        // lock while reconnecting since it modifies writer/reader/socket
-                        if (connectAndAuthenticate("password", false)) {
-                            System.out.println("Reconnected.");
-                            break; // reconnect successful, continue listening
+                        if (connectAndAuthenticate(password, false)) {
+                            System.out.println("Reconectado.");
+                            break;
                         } else {
-                            System.out.println("Retrying connection...");
+                            System.out.println("Tentando reconectar...");
                         }
                     } finally {
                         ioLock.unlock();
@@ -228,7 +255,6 @@ public class Client {
                 }
 
                 if (running) {
-                    // recursive re-entry into listen loop after successful reconnect
                     listenToServer();
                 }
             }

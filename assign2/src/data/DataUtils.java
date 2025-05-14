@@ -54,7 +54,7 @@ public class DataUtils {
                         String username = fields.get("username");
                         String passwordHash = fields.get("passwordHash");
                         if (username != null && passwordHash != null) {
-                            User user = new User(username, passwordHash, new ArrayList<>());
+                            User user = new User(username, passwordHash);
                             data.addUser(user);
                         }
                     }

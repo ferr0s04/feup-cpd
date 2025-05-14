@@ -34,7 +34,6 @@ public class AuthenticationHandler {
 
         for (User user : data.getUsers()) {
             userPasswords.put(user.getUsername(), user.getPasswordHash());
-            userChatrooms.put(user.getUsername(), user.getChatrooms());
         }
     }
 
@@ -46,17 +45,15 @@ public class AuthenticationHandler {
         return storedHash.equals(inputHash);
     }
 
-    public boolean register(String username, String password, List<String> chatrooms) {
+    public boolean register(String username, String password) {
         if (userPasswords.containsKey(username)) {
-            System.out.println("User already exists!");
             return false;
         }
 
         String passwordHash = hash(password);
         userPasswords.put(username, passwordHash);
-        userChatrooms.put(username, chatrooms);
 
-        User newUser = new User(username, passwordHash, chatrooms);
+        User newUser = new User(username, passwordHash);
         data.getUsers().add(newUser);
 
         DataUtils.saveData(data);
@@ -84,7 +81,6 @@ public class AuthenticationHandler {
     public static SSLSocket connectToServerWithTruststore(String serverAddress, int port,
                                                           String truststorePath, String truststorePassword) {
         try {
-            System.out.println("Loading truststore...");
             // Load truststore (to verify server certificate)
             KeyStore truststore = KeyStore.getInstance("JKS");
             truststore.load(new FileInputStream(truststorePath), truststorePassword.toCharArray());
@@ -96,13 +92,9 @@ public class AuthenticationHandler {
             context.init(null, tmf.getTrustManagers(), null);
 
             SSLSocketFactory factory = context.getSocketFactory();
-            System.out.println("Connecting to server...");
             SSLSocket socket = (SSLSocket) factory.createSocket(serverAddress, port);
 
-            System.out.println("Enabled TLS protocols: " + Arrays.toString(socket.getEnabledProtocols()));
-
             socket.startHandshake();
-            System.out.println("Handshake complete.");
 
             return socket;
 

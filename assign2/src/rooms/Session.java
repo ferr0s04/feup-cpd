@@ -19,6 +19,10 @@ public class Session {
         this.out = new PrintWriter(socket.getOutputStream(), true); // autoflush
     }
 
+    public void flush() {
+        out.flush();
+    }
+
     public ChatRoom getCurrentRoom() {
         lock.lock();
         try {

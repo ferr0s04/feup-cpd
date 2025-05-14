@@ -6,13 +6,11 @@ public class User {
 
     private String username;
     private String passwordHash;
-    private List<String> chatrooms;
 
     // Construtor
-    public User(String username, String passwordHash, List<String> chatrooms) {
+    public User(String username, String passwordHash) {
         this.username = username;
         this.passwordHash = passwordHash;
-        this.chatrooms = chatrooms;
     }
 
     // Getters e Setters
@@ -30,13 +28,5 @@ public class User {
 
     public void setPasswordHash(String passwordHash) {
         this.passwordHash = passwordHash;
-    }
-
-    public List<String> getChatrooms() {
-        return chatrooms;
-    }
-
-    public void setChatrooms(List<String> chatrooms) {
-        this.chatrooms = chatrooms;
     }
 }
