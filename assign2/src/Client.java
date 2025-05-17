@@ -1,5 +1,6 @@
 import javax.net.ssl.*;
 import java.io.*;
+import java.net.SocketTimeoutException;
 import java.nio.file.*;
 import java.util.Scanner;
 import java.util.concurrent.Executors;
@@ -82,7 +83,13 @@ public class Client {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         executor.submit(Client::listenToServer);
 
-        System.out.println("Enter commands or messages:");
+        System.out.println("Available commands:");
+        System.out.println("/list - List all rooms");
+        System.out.println("/enter <room> - Enter a room");
+        System.out.println("/create <room> - Create a new room");
+        System.out.println("/createai <room> <prompt> - Create an AI room");
+        System.out.println("/leave - Leave current room");
+        System.out.println("Enter command:");
         String input;
 
         while ((input = console.readLine()) != null) {
@@ -111,11 +118,11 @@ public class Client {
                         command = "CREATE_ROOM " + parts[1];
                         break;
                     case "/createai":
-                        if (parts.length != 3) {
+                        if (parts.length != 2) {
                             System.out.println("Usage: /createai <room_name> <prompt>");
                             continue;
                         }
-                        command = "CREATE_ROOM " + parts[1] + " AI " + parts[2];
+                        command = "CREATE_ROOM " + parts[1] + " AI ";
                         break;
                     case "/leave":
                         command = "LEAVE";
@@ -125,7 +132,7 @@ public class Client {
                         System.out.println("/list - List all rooms");
                         System.out.println("/enter <room> - Enter a room");
                         System.out.println("/create <room> - Create a new room");
-                        System.out.println("/createai <room> <prompt> - Create an AI room");
+                        System.out.println("/createai <room> - Create an AI room");
                         System.out.println("/leave - Leave current room");
                         continue;
                 }
@@ -167,10 +174,13 @@ public class Client {
             SSLSocket newSock = AuthenticationHandler.connectToServerWithTruststore(
                     serverAddress, port, TRUSTSTORE_PATH, TRUSTSTORE_PASSWORD
             );
+
             if (newSock == null) {
                 System.out.println("Could not connect to the server after multiple attempts.");
                 return false;
             }
+
+            newSock.setSoTimeout(30000);
 
             // 2) Prepare new I/O objects
             PrintWriter newWriter = new PrintWriter(newSock.getOutputStream(), true);
@@ -223,42 +233,54 @@ public class Client {
     }
 
     private static void listenToServer() {
-        try {
-            String line;
-            while (running) {
-                line = reader.readLine();
-                if (line == null) break; // conexão fechada
+        while (running) {
+            try {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    if (line.startsWith(username + ": ")) continue;
+                    System.out.println(line);
+                }
 
-                if (line.startsWith(username + ": ")) continue;
-                System.out.println(line);
+                // If readLine() returns null, the server closed the connection.
+                System.out.println("Disconnected from server. Attempting to reconnect...");
+
+            } catch (SocketTimeoutException e) {
+                System.out.println("Read timeout. Attempting reconnection...");
+            } catch (IOException e) {
+                System.out.println("Connection error: " + e.getMessage());
             }
-        } catch (IOException e) {
-            if (running) {
-                System.out.println("Desconectado do servidor. Tentando reconectar...");
 
-                while (running) {
-                    try {
-                        Thread.sleep(2000);
-                    } catch (InterruptedException ignored) {}
+            // Reconnection logic
+            if (!running) break;
 
-                    ioLock.lock();
-                    try {
-                        if (connectAndAuthenticate(password, false)) {
-                            System.out.println("Reconectado.");
-                            break;
-                        } else {
-                            System.out.println("Tentando reconectar...");
-                        }
-                    } finally {
-                        ioLock.unlock();
+            int retries = 0;
+            final int maxRetries = 10;
+
+            while (running && retries < maxRetries) {
+                try {
+                    Thread.sleep(2000);
+                } catch (InterruptedException ignored) {}
+
+                ioLock.lock();
+                try {
+                    if (connectAndAuthenticate(password, false)) {
+                        System.out.println("Reconnected.");
+                        break;
+                    } else {
+                        retries++;
+                        System.out.println("Retry " + retries + " of " + maxRetries);
                     }
+                } finally {
+                    ioLock.unlock();
                 }
+            }
 
-                if (running) {
-                    listenToServer();
-                }
+            if (retries >= maxRetries) {
+                System.out.println("Failed to reconnect after " + maxRetries + " attempts. Exiting.");
+                running = false;
             }
         }
     }
+
 
 }
