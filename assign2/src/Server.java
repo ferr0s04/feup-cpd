@@ -90,6 +90,7 @@ public class Server {
                 }
 
                 session.setUsername(username);
+                System.out.println("User connected: " + username);
 
                 // Gera novo token
                 String token = UUID.randomUUID().toString();
@@ -138,6 +139,8 @@ public class Server {
                 return;
             }
 
+            startKeepAlive(session);
+
             // --- CHAT LOOP ---
             String line;
             while ((line = session.in.readLine()) != null) {
@@ -176,7 +179,16 @@ public class Server {
                             session.out.println("ERROR Room name required");
                             session.out.flush();
                         } else {
-                            handleCreateRoom(session, parts);
+                            handleCreateRoom(session, parts, false);
+                        }
+                        break;
+
+                    case "CREATE_AI":
+                        if (parts.length < 2) {
+                            session.out.println("ERROR Room name required");
+                            session.out.flush();
+                        } else {
+                            handleCreateRoom(session, parts, true);
                         }
                         break;
 
@@ -186,6 +198,10 @@ public class Server {
 
                     case "MSG":
                         handleMsg(session, parts.length > 1 ? parts[1] : "");
+                        break;
+
+                    case "PONG":
+                        session.updatePongTime();
                         break;
 
                     default:
@@ -219,6 +235,33 @@ public class Server {
         }
     }
 
+    private static void startKeepAlive(Session session) {
+        Thread.startVirtualThread(() -> {
+            try {
+                while (!session.isClosed()) {
+                    Thread.sleep(30000);
+
+                    if (session.isClosed()) break;
+
+                    session.out.println("PING");
+                    session.out.flush();
+
+                    long now = System.currentTimeMillis();
+                    Thread.sleep(5000);
+
+                    if (now - session.getLastPongTime() > 30000) {
+                        session.out.println("ERROR Connection timed out due to inactivity.");
+                        session.close();
+                        break;
+                    }
+                }
+            } catch (Exception e) {
+                System.out.println("Error for user " + session.getUsername() +
+                        ": " + e.getMessage());
+            }
+        });
+    }
+
     private static void handleEnter(Session session, String roomName) {
         if (roomName == null || roomName.trim().isEmpty()) {
             session.out.println("ERROR Room name required");
@@ -246,43 +289,37 @@ public class Server {
 
         // Envia a mensagem do usuário para a sala
         room.broadcast(session.getUsername() + ": " + message);
-        DataUtils.addMessage(room.getName(), session.getUsername() + ": " + message);
 
         // Verifica se a sala é uma sala de IA
         if (room.isAI()) {
             try {
                 Prompter prompter = new Prompter();
-                // Usa o contexto retornado pela última resposta da IA, se existir
                 JSONArray context = room.getAIContext();
                 if (context == null) {
-                    context = new JSONArray(); // Apenas na primeira mensagem
+                    context = new JSONArray();
                 }
 
                 PromptOut aiResponse = prompter.prompt(message, context);
-
-                // Salva o novo contexto para a próxima mensagem
                 room.setAIContext(aiResponse.getContext());
 
                 String aiMessage = "AI: " + aiResponse.getResponse();
                 room.broadcast(aiMessage);
-                DataUtils.addMessage(room.getName(), aiMessage);
             } catch (Exception e) {
                 session.out.println("ERROR AI failed to respond: " + e.getMessage());
             }
         }
     }
 
-    private static void handleCreateRoom(Session session, String[] parts) {
+    private static void handleCreateRoom(Session session, String[] parts, boolean isAI) {
         if (parts.length < 2) {
             session.out.println("ERROR Room name required");
             return;
         }
 
         String roomName = parts[1];
-        boolean isAI = false;
         String prompt = null;
 
-        if (parts.length >= 4 && "AI".equalsIgnoreCase(parts[2])) {
+        if (parts.length >= 3 && "AI".equalsIgnoreCase(parts[2])) {
             isAI = true;
             prompt = parts[3];
         }

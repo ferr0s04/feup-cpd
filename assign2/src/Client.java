@@ -119,10 +119,10 @@ public class Client {
                         break;
                     case "/createai":
                         if (parts.length != 2) {
-                            System.out.println("Usage: /createai <room_name> <prompt>");
+                            System.out.println("Usage: /createai <room_name>");
                             continue;
                         }
-                        command = "CREATE_ROOM " + parts[1] + " AI ";
+                        command = "CREATE_AI " + parts[1];
                         break;
                     case "/leave":
                         command = "LEAVE";
@@ -180,7 +180,7 @@ public class Client {
                 return false;
             }
 
-            newSock.setSoTimeout(30000);
+            newSock.setSoTimeout(300000);
 
             // 2) Prepare new I/O objects
             PrintWriter newWriter = new PrintWriter(newSock.getOutputStream(), true);
@@ -237,6 +237,16 @@ public class Client {
             try {
                 String line;
                 while ((line = reader.readLine()) != null) {
+                    if (line.equals("PING")) {
+                        ioLock.lock();
+                        try {
+                            writer.println("PONG");
+                            writer.flush();
+                        } finally {
+                            ioLock.unlock();
+                        }
+                        continue;
+                    }
                     if (line.startsWith(username + ": ")) continue;
                     System.out.println(line);
                 }
@@ -281,6 +291,4 @@ public class Client {
             }
         }
     }
-
-
 }

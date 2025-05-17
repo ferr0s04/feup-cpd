@@ -1,15 +1,12 @@
 package data;
 
-import data.DataParser;
-import data.User;
+import org.json.*;
 import rooms.ChatRoom;
-
 import java.io.*;
 import java.nio.file.*;
 import java.util.*;
 
 public class DataUtils {
-
     private static final String DATA_FILE = "data/data.json";
 
     public static DataParser loadData() {
@@ -18,157 +15,42 @@ public class DataUtils {
         try {
             Path path = Paths.get(DATA_FILE);
             if (!Files.exists(path)) {
-                saveData(data); // cria estrutura vazia
+                saveData(data);
                 return data;
             }
 
-            List<String> lines = Files.readAllLines(path);
-            StringBuilder json = new StringBuilder();
-            for (String line : lines) {
-                json.append(line.trim());
+            String content = new String(Files.readAllBytes(path));
+            JSONObject json = new JSONObject(content);
+
+            // Carrega usuários
+            JSONArray users = json.getJSONArray("users");
+            for (int i = 0; i < users.length(); i++) {
+                JSONObject user = users.getJSONObject(i);
+                data.addUser(new User(
+                        user.getString("username"),
+                        user.getString("passwordHash")
+                ));
             }
 
-            String content = json.toString();
+            // Carrega salas de chat
+            JSONArray rooms = json.getJSONArray("chatrooms");
+            for (int i = 0; i < rooms.length(); i++) {
+                JSONObject room = rooms.getJSONObject(i);
+                ChatRoom chatRoom = new ChatRoom(
+                        room.getString("name"),
+                        room.getBoolean("isAI"),
+                        room.optString("prompt", "")
+                );
 
-            if (content.contains("\"users\"")) {
-                int start = content.indexOf("[", content.indexOf("\"users\""));
-                int end = content.indexOf("]", start);
-                if (start != -1 && end != -1) {
-                    String userArray = content.substring(start + 1, end).trim();
-                    String[] userBlocks = userArray.split("\\},\\s*\\{");
-
-                    for (String userBlock : userBlocks) {
-                        userBlock = userBlock.replace("{", "").replace("}", "").trim();
-                        Map<String, String> fields = new HashMap<>();
-
-                        String[] entries = userBlock.split(",");
-                        for (String entry : entries) {
-                            String[] pair = entry.split(":", 2);
-                            if (pair.length != 2) continue;
-
-                            String key = pair[0].replaceAll("\"", "").trim();
-                            String value = pair[1].replaceAll("\"", "").trim();
-                            fields.put(key, value);
-                        }
-
-                        String username = fields.get("username");
-                        String passwordHash = fields.get("passwordHash");
-                        if (username != null && passwordHash != null) {
-                            User user = new User(username, passwordHash);
-                            data.addUser(user);
-                        }
-                    }
+                // Carrega mensagens
+                JSONArray messages = room.getJSONArray("messages");
+                List<String> messageList = new ArrayList<>();
+                for (int j = 0; j < messages.length(); j++) {
+                    messageList.add(messages.getString(j));
                 }
-            }
+                chatRoom.setHistory(messageList);
 
-
-            // --- CHATROOMS ---
-            if (content.contains("\"chatrooms\"")) {
-                int chatroomStart = content.indexOf("\"chatrooms\"");
-                if (chatroomStart != -1) {
-                    int arrayStart = content.indexOf("[", chatroomStart);
-                    int bracketCount = 0;
-                    int arrayEnd = -1;
-
-                    for (int i = arrayStart; i < content.length(); i++) {
-                        char c = content.charAt(i);
-                        if (c == '[') bracketCount++;
-                        else if (c == ']') bracketCount--;
-                        if (bracketCount == 0) {
-                            arrayEnd = i;
-                            break;
-                        }
-                    }
-
-                    if (arrayStart != -1 && arrayEnd != -1) {
-                        String roomArray = content.substring(arrayStart + 1, arrayEnd).trim();
-                        List<String> roomBlocks = new ArrayList<>();
-                        int braceCount = 0;
-                        StringBuilder current = new StringBuilder();
-
-                        for (int i = 0; i < roomArray.length(); i++) {
-                            char c = roomArray.charAt(i);
-                            if (c == '{') {
-                                if (braceCount == 0) current = new StringBuilder();
-                                braceCount++;
-                            }
-
-                            if (braceCount > 0) current.append(c);
-
-                            if (c == '}') {
-                                braceCount--;
-                                if (braceCount == 0) {
-                                    roomBlocks.add(current.toString());
-                                }
-                            }
-                        }
-
-                        for (String roomBlock : roomBlocks) {
-                            String name = null;
-                            boolean isAI = false;
-
-                            int nameIndex = roomBlock.indexOf("\"name\"");
-                            int isAIIndex = roomBlock.indexOf("\"isAI\"");
-
-                            if (nameIndex != -1) {
-                                int colonIndex = roomBlock.indexOf(":", nameIndex);
-                                int startQuote = roomBlock.indexOf("\"", colonIndex);
-                                int endQuote = roomBlock.indexOf("\"", startQuote + 1);
-                                if (startQuote != -1 && endQuote != -1) {
-                                    name = roomBlock.substring(startQuote + 1, endQuote);
-                                }
-                            }
-
-                            if (isAIIndex != -1) {
-                                int colonIndex = roomBlock.indexOf(":", isAIIndex);
-                                String boolString = roomBlock.substring(colonIndex + 1).split(",|\\}")[0].trim();
-                                isAI = boolString.equals("true");
-                            }
-
-                            List<String> messages = new ArrayList<>();
-                            int messagesIndex = roomBlock.indexOf("\"messages\"");
-                            if (messagesIndex != -1) {
-                                int messageArrayStart = roomBlock.indexOf("[", messagesIndex);
-                                int messageArrayEnd = roomBlock.indexOf("]", messageArrayStart);
-                                if (messageArrayStart != -1 && messageArrayEnd != -1) {
-                                    String raw = roomBlock.substring(messageArrayStart + 1, messageArrayEnd).trim();
-                                    if (!raw.isEmpty()) {
-                                        List<String> parsedMessages = new ArrayList<>();
-                                        StringBuilder msgBuilder = new StringBuilder();
-                                        boolean inQuotes = false;
-                                        boolean escape = false;
-
-                                        for (int i = 0; i < raw.length(); i++) {
-                                            char c = raw.charAt(i);
-                                            if (escape) {
-                                                msgBuilder.append(c);
-                                                escape = false;
-                                            } else if (c == '\\') {
-                                                escape = true;
-                                            } else if (c == '"') {
-                                                inQuotes = !inQuotes;
-                                                if (!inQuotes) {
-                                                    parsedMessages.add(msgBuilder.toString());
-                                                    msgBuilder.setLength(0);
-                                                }
-                                            } else if (inQuotes) {
-                                                msgBuilder.append(c);
-                                            }
-                                        }
-
-                                        messages.addAll(parsedMessages);
-                                    }
-                                }
-                            }
-
-                            if (name != null) {
-                                ChatRoom room = new ChatRoom(name, isAI, "");
-                                data.getChatrooms().add(room);
-                                room.setHistory(messages);
-                            }
-                        }
-                    }
-                }
+                data.getChatrooms().add(chatRoom);
             }
 
         } catch (IOException e) {
@@ -179,43 +61,41 @@ public class DataUtils {
     }
 
     public static void saveData(DataParser data) {
-        try (BufferedWriter writer = Files.newBufferedWriter(Paths.get(DATA_FILE))) {
-            writer.write("{\n  \"users\": [\n");
+        try {
+            JSONObject json = new JSONObject();
 
-            List<User> users = data.getUsers();
-            for (int i = 0; i < users.size(); i++) {
-                User user = users.get(i);
-                writer.write("    {\n");
-                writer.write("      \"username\": \"" + user.getUsername() + "\",\n");
-                writer.write("      \"passwordHash\": \"" + user.getPasswordHash() + "\"\n");
-                writer.write("    }");
-                if (i < users.size() - 1) writer.write(",");
-                writer.write("\n");
+            // Salva usuários
+            JSONArray users = new JSONArray();
+            for (User user : data.getUsers()) {
+                JSONObject userJson = new JSONObject();
+                userJson.put("username", user.getUsername());
+                userJson.put("passwordHash", user.getPasswordHash());
+                users.put(userJson);
             }
+            json.put("users", users);
 
-            writer.write("  ],\n  \"chatrooms\": [\n");
-
-            List<ChatRoom> chatrooms = data.getChatrooms();
-            for (int i = 0; i < chatrooms.size(); i++) {
-                ChatRoom room = chatrooms.get(i);
-                writer.write("    {\n");
-                writer.write("      \"name\": \"" + room.getName() + "\",\n");
-                writer.write("      \"participants\": [],\n");
-                writer.write("      \"messages\": [");
-                List<String> messages = room.getHistory();
-                for (int j = 0; j < messages.size(); j++) {
-                    writer.write("\"" + messages.get(j).replace("\"", "\\\"") + "\"");
-                    if (j < messages.size() - 1) writer.write(", ");
+            // Salva salas
+            JSONArray rooms = new JSONArray();
+            for (ChatRoom room : data.getChatrooms()) {
+                JSONObject roomJson = new JSONObject();
+                roomJson.put("name", room.getName());
+                roomJson.put("messages", new JSONArray(room.getHistory()));
+                roomJson.put("isAI", room.isAI());
+                if (!room.getPrompt().isEmpty()) {
+                    roomJson.put("prompt", room.getPrompt());
                 }
-                writer.write("],\n");
-                writer.write("      \"isAI\": " + room.isAI() + "\n");
-                writer.write("    }");
-
-                if (i < chatrooms.size() - 1) writer.write(",");
-                writer.write("\n");
+                rooms.put(roomJson);
             }
+            json.put("chatrooms", rooms);
 
-            writer.write("  ]\n}");
+            // Salva o arquivo formatado
+            Files.write(
+                    Paths.get(DATA_FILE),
+                    json.toString(2).getBytes(),
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.TRUNCATE_EXISTING
+            );
+
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -225,29 +105,41 @@ public class DataUtils {
         DataParser data = loadData();
 
         // Verifica se a sala já existe
-        for (ChatRoom room : data.getChatrooms()) {
-            if (room.getName().equals(roomName)) {
-                return;
-            }
+        if (data.getChatrooms().stream()
+                .noneMatch(r -> r.getName().equals(roomName))) {
+            ChatRoom newRoom = new ChatRoom(roomName, isAI, "");
+            data.getChatrooms().add(newRoom);
+            saveData(data);
         }
-
-        ChatRoom newRoom = new ChatRoom(roomName, isAI, "");
-        data.getChatrooms().add(newRoom);
-
-        saveData(data);
     }
 
     public static synchronized void addMessage(String roomName, String message) {
-        DataParser data = loadData();
+        try {
+            // Lê o arquivo atual
+            String content = new String(Files.readAllBytes(Paths.get(DATA_FILE)));
+            JSONObject json = new JSONObject(content);
+            JSONArray rooms = json.getJSONArray("chatrooms");
 
-        // Atualiza apenas se a sala existir
-        for (ChatRoom room : data.getChatrooms()) {
-            if (room.getName().equals(roomName)) {
-                room.getHistory().add(message);
-                break;
+            // Encontra e atualiza a sala específica
+            for (int i = 0; i < rooms.length(); i++) {
+                JSONObject room = rooms.getJSONObject(i);
+                if (room.getString("name").equals(roomName)) {
+                    JSONArray messages = room.getJSONArray("messages");
+                    messages.put(message);
+                    break;
+                }
             }
-        }
 
-        saveData(data);
+            // Salva o arquivo atualizado
+            Files.write(
+                    Paths.get(DATA_FILE),
+                    json.toString(2).getBytes(),
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.TRUNCATE_EXISTING
+            );
+
+        } catch (IOException e) {
+            System.out.println("[DEBUG] Erro ao salvar mensagem: " + e.getMessage());
+        }
     }
 }

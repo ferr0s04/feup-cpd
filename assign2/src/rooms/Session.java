@@ -82,4 +82,18 @@ public class Session {
     public void setUsername(String username) {
         this.username = username;
     }
+
+    private volatile long lastPongTime = System.currentTimeMillis();
+
+    public void updatePongTime() {
+        lastPongTime = System.currentTimeMillis();
+    }
+
+    public long getLastPongTime() {
+        return lastPongTime;
+    }
+
+    public boolean isClosed() {
+        return socket.isClosed() || socket.isInputShutdown() || socket.isOutputShutdown();
+    }
 }

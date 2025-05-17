@@ -1,5 +1,6 @@
 package rooms;
 
+import data.DataUtils;
 import org.json.*;
 
 import java.io.IOException;
@@ -32,7 +33,7 @@ public class ChatRoom {
             for (String msg : history) {
                 s.out.println(msg);
             }
-            broadcast("[" + s.getUsername() + " entered the room]");
+            broadcastServer("[" + s.getUsername() + " entered the room]");
         } finally {
             lock.unlock();
         }
@@ -42,7 +43,7 @@ public class ChatRoom {
         lock.lock();
         try {
             members.remove(s);
-            broadcast("[" + s.getUsername() + " left the room]");
+            broadcastServer("[" + s.getUsername() + " left the room]");
         } finally {
             lock.unlock();
         }
@@ -51,27 +52,44 @@ public class ChatRoom {
     public void broadcast(String msg) {
         lock.lock();
         try {
+            // Adiciona a mensagem ao histórico local
             history.add(msg);
+
+            // Salva a mensagem no arquivo
+            DataUtils.addMessage(this.name, msg);
+
+            // Envia para todos os membros
             for (Session s : members) {
                 s.out.println(msg);
+                s.out.flush();
             }
 
             if (isAI) {
-                // TODO: Call LLM process and broadcast response as "Bot: ..."
-                Prompter prompter = new Prompter();
-                PromptOut promptOut;
-                promptOut = prompter.prompt(msg, aiContext);
-                broadcastAI(promptOut.getResponse());
-            }
+                try {
+                    Prompter prompter = new Prompter();
+                    PromptOut promptOut = prompter.prompt(msg, new JSONArray());
+                    String aiResponse = "AI: " + promptOut.getResponse();
 
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+                    // Salva a resposta da IA
+                    history.add(aiResponse);
+                    DataUtils.addMessage(this.name, aiResponse);
+
+                    // Envia para todos os membros
+                    for (Session s : members) {
+                        s.out.println(aiResponse);
+                        s.out.flush();
+                    }
+
+                } catch (IOException e) {
+                    System.out.println("Erro ao processar resposta da IA: " + e.getMessage());
+                }
+            }
         } finally {
             lock.unlock();
         }
     }
 
-    public void broadcastAI(String msg) {
+    public void broadcastServer(String msg) {
         lock.lock();
         try {
             history.add(msg);
