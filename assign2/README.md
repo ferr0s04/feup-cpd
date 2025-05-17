@@ -1,3 +1,5 @@
+# Assignment 2 - Instructions
+
 ## Compiling
 PowerShell (using JAR file):  
 ```
@@ -12,7 +14,7 @@ javac --enable-preview --release 21 Server.java Client.java data/*.java auth/*.j
 ```
 
 ## Usage
-Client:
+### Client
 ```
 java --enable-preview Client localhost <PORT> <USER> <PASS>
 ```
@@ -22,7 +24,7 @@ With JAR file:
 java --enable-preview -cp ".;lib\json-20250107.jar" Client localhost <PORT> <USER> <PASS>
 ```
 
-Server:
+### Server
 ```
 java --enable-preview Server <PORT>
 ```
@@ -30,4 +32,15 @@ java --enable-preview Server <PORT>
 With JAR file:
 ```
 java --enable-preview -cp ".;lib\json-20250107.jar" Server <PORT>
+```
+
+## AI Setup
+Just install Ollama on your machine:
+```
+sudo snap install ollama
+```
+
+And run the correct model:
+```
+ollama run llama3
 ```
