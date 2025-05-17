@@ -1,7 +1,9 @@
 ## Compiling
-PowerShell:  
+PowerShell (using JAR file):  
 ```
-Get-ChildItem -Recurse -Filter *.java | ForEach-Object { javac $_.FullName }
+$classpath = ".\lib\json-20250107.jar"                                                                   
+$src = Get-ChildItem -Recurse -Filter *.java | ForEach-Object { $_.FullName }
+javac -cp $classpath $src 
 ```
 
 Unix:
@@ -15,7 +17,17 @@ Client:
 java --enable-preview Client localhost <PORT> <USER> <PASS>
 ```
 
+With JAR file:
+```
+java --enable-preview -cp ".;lib\json-20250107.jar" Client localhost <PORT> <USER> <PASS>
+```
+
 Server:
 ```
 java --enable-preview Server <PORT>
+```
+
+With JAR file:
+```
+java --enable-preview -cp ".;lib\json-20250107.jar" Server <PORT>
 ```

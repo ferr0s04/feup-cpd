@@ -2,7 +2,10 @@ import javax.net.ssl.*;
 import java.io.*;
 import java.util.*;
 import java.util.concurrent.locks.ReentrantLock;
+import org.json.*;
 
+import ai.PromptOut;
+import ai.Prompter;
 import rooms.Session;
 import rooms.ChatRoom;
 import data.DataUtils;
@@ -238,9 +241,32 @@ public class Server {
             return;
         }
 
+        // Envia a mensagem do usuário para a sala
         room.broadcast(session.getUsername() + ": " + message);
-
         DataUtils.addMessage(room.getName(), session.getUsername() + ": " + message);
+
+        // Verifica se a sala é uma sala de IA
+        if (room.isAI()) {
+            try {
+                Prompter prompter = new Prompter();
+                // Usa o contexto retornado pela última resposta da IA, se existir
+                JSONArray context = room.getAIContext();
+                if (context == null) {
+                    context = new JSONArray(); // Apenas na primeira mensagem
+                }
+
+                PromptOut aiResponse = prompter.prompt(message, context);
+
+                // Salva o novo contexto para a próxima mensagem
+                room.setAIContext(aiResponse.getContext());
+
+                String aiMessage = "AI: " + aiResponse.getResponse();
+                room.broadcast(aiMessage);
+                DataUtils.addMessage(room.getName(), aiMessage);
+            } catch (Exception e) {
+                session.out.println("ERROR AI failed to respond: " + e.getMessage());
+            }
+        }
     }
 
     private static void handleCreateRoom(Session session, String[] parts) {

@@ -1,5 +1,6 @@
 package rooms;
 
+import org.json.*;
 import java.util.*;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -101,6 +102,26 @@ public class ChatRoom {
         try {
             history.clear();
             history.addAll(msgs);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    private JSONArray aiContext; // Para armazenar o contexto da IA
+
+    public JSONArray getAIContext() {
+        lock.lock();
+        try {
+            return aiContext;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public void setAIContext(JSONArray context) {
+        lock.lock();
+        try {
+            this.aiContext = context;
         } finally {
             lock.unlock();
         }
