@@ -1,37 +1,37 @@
 # Assignment 2 - Instructions
 
 ## Compiling
-PowerShell (using JAR file):  
+PowerShell:  
 ```
-$classpath = ".\lib\json-20250107.jar"                                                                   
-$src = Get-ChildItem -Recurse -Filter *.java | ForEach-Object { $_.FullName }
-javac -cp $classpath $src 
+javac --enable-preview --release 23 -cp ".;lib/json-20250107.jar" Server.java Client.java data/*.java auth/*.java rooms/*.java ai/*.java 
 ```
 
 Unix:
 ```
-javac --enable-preview --release 21 Server.java Client.java data/*.java auth/*.java rooms/*.java
+javac --enable-preview --release 21 -cp .:lib/json-20250107.jar Server.java Client.java data/*.java auth/*.java rooms/*.java ai/*.java
 ```
 
 ## Usage
 ### Client
-```
-java --enable-preview Client localhost <PORT> <USER> <PASS>
-```
-
-With JAR file:
+- Windows:
 ```
 java --enable-preview -cp ".;lib\json-20250107.jar" Client localhost <PORT> <USER> <PASS>
 ```
 
-### Server
+- Unix:
 ```
-java --enable-preview Server <PORT>
+java --enable-preview -cp .:lib\json-20250107.jar Client localhost <PORT> <USER> <PASS>
 ```
 
-With JAR file:
+### Server
+- Windows:
 ```
 java --enable-preview -cp ".;lib\json-20250107.jar" Server <PORT>
+```
+
+- Unix:
+```
+java --enable-preview -cp .:lib\json-20250107.jar Server <PORT>
 ```
 
 ## AI Setup

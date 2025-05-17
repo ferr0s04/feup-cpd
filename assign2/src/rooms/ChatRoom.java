@@ -1,10 +1,13 @@
 package rooms;
 
 import org.json.*;
+
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.locks.ReentrantLock;
 
 import ai.Prompter;
+import ai.PromptOut;
 
 public class ChatRoom {
     public String name;
@@ -56,8 +59,25 @@ public class ChatRoom {
             if (isAI) {
                 // TODO: Call LLM process and broadcast response as "Bot: ..."
                 Prompter prompter = new Prompter();
+                PromptOut promptOut;
+                promptOut = prompter.prompt(msg, aiContext);
+                broadcastAI(promptOut.getResponse());
             }
 
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public void broadcastAI(String msg) {
+        lock.lock();
+        try {
+            history.add(msg);
+            for (Session s : members) {
+                s.out.println(msg);
+            }
         } finally {
             lock.unlock();
         }

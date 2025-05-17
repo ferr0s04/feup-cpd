@@ -76,6 +76,7 @@ public class Server {
             if (loginParts[0].equals("LOGIN")) {
                 if (loginParts.length < 3) {
                     session.out.println("AUTH_FAIL invalid login format");
+                    session.close();
                     return;
                 }
 
@@ -101,7 +102,9 @@ public class Server {
                 }
 
                 session.out.println("TOKEN:" + token);
+                session.out.flush();
                 session.out.println("AUTH_OK");
+                session.out.flush();
 
             } else if (loginParts[0].equals("RESUME_SESSION")) {
                 if (loginParts.length < 2) {
