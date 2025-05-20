@@ -260,9 +260,6 @@ public class Client {
                 System.out.println("Connection error: " + e.getMessage());
             }
 
-            // Reconnection logic
-            if (!running) break;
-
             int retries = 0;
             final int maxRetries = 10;
 
@@ -288,7 +285,11 @@ public class Client {
             if (retries >= maxRetries) {
                 System.out.println("Failed to reconnect after " + maxRetries + " attempts. Exiting.");
                 running = false;
+                System.exit(1);
             }
+
+            // Reconnection logic
+            if (!running) break;
         }
     }
 }
