@@ -1,6 +1,8 @@
 package auth;
 
 import java.io.*;
+import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.security.KeyStore;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -78,32 +80,48 @@ public class AuthenticationHandler {
     }
 
 
-    public static SSLSocket connectToServerWithTruststore(String serverAddress, int port,
-                                                          String truststorePath, String truststorePassword) {
+    public static SSLSocket connectToServerWithTruststore(String host, int port, String truststorePath, String truststorePassword) {
         try {
-            // Load truststore (to verify server certificate)
-            KeyStore truststore = KeyStore.getInstance("JKS");
-            truststore.load(new FileInputStream(truststorePath), truststorePassword.toCharArray());
+            // Load truststore
+            KeyStore trustStore = KeyStore.getInstance("JKS");
+            trustStore.load(new FileInputStream(truststorePath), truststorePassword.toCharArray());
 
+            // Init TrustManager
             TrustManagerFactory tmf = TrustManagerFactory.getInstance("SunX509");
-            tmf.init(truststore);
+            tmf.init(trustStore);
 
-            SSLContext context = SSLContext.getInstance("TLS");
-            context.init(null, tmf.getTrustManagers(), null);
+            // Init SSLContext
+            SSLContext sslContext = SSLContext.getInstance("TLS");
+            sslContext.init(null, tmf.getTrustManagers(), null);
 
-            SSLSocketFactory factory = context.getSocketFactory();
-            SSLSocket socket = (SSLSocket) factory.createSocket(serverAddress, port);
+            SSLSocketFactory factory = sslContext.getSocketFactory();
 
-            socket.startHandshake();
+            // Create unconnected socket and connect with timeout
+            Socket underlying = new Socket();
+            int connectTimeout = 5000; // 5 seconds
+            underlying.connect(new InetSocketAddress(host, port), connectTimeout);
 
-            return socket;
+            // Wrap with SSL
+            SSLSocket sslSocket = (SSLSocket) factory.createSocket(
+                    underlying,
+                    host,
+                    port,
+                    true // autoClose underlying on close
+            );
+
+            // Set read timeout (optional)
+            sslSocket.setSoTimeout(10000); // 10 seconds for read
+
+            // Start handshake (can still timeout here)
+            sslSocket.startHandshake();
+
+            return sslSocket;
 
         } catch (Exception e) {
-            System.err.println("Error during TLS connection setup: " + e.getMessage());
-            e.printStackTrace();
             return null;
         }
     }
+
 
     /**
      * Connects to the TLS server using only the truststore (no client certificate).

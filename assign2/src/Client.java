@@ -176,11 +176,9 @@ public class Client {
             );
 
             if (newSock == null) {
-                System.out.println("Could not connect to the server after multiple attempts.");
+                System.out.println("Could not connect to the server.");
                 return false;
             }
-
-            newSock.setSoTimeout(300000);
 
             // 2) Prepare new I/O objects
             PrintWriter newWriter = new PrintWriter(newSock.getOutputStream(), true);
