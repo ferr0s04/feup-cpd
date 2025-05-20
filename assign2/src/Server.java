@@ -139,8 +139,6 @@ public class Server {
                 return;
             }
 
-            startKeepAlive(session);
-
             // --- CHAT LOOP ---
             String line;
             while ((line = session.in.readLine()) != null) {
@@ -200,10 +198,6 @@ public class Server {
                         handleMsg(session, parts.length > 1 ? parts[1] : "");
                         break;
 
-                    case "PONG":
-                        session.updatePongTime();
-                        break;
-
                     default:
                         session.out.println("ERROR Unknown command: " + cmd);
                         session.out.flush();
@@ -233,33 +227,6 @@ public class Server {
         } finally {
             roomsLock.unlock();
         }
-    }
-
-    private static void startKeepAlive(Session session) {
-        Thread.startVirtualThread(() -> {
-            try {
-                while (!session.isClosed()) {
-                    Thread.sleep(30000);
-
-                    if (session.isClosed()) break;
-
-                    session.out.println("PING");
-                    session.out.flush();
-
-                    long now = System.currentTimeMillis();
-                    Thread.sleep(5000);
-
-                    if (now - session.getLastPongTime() > 30000) {
-                        session.out.println("ERROR Connection timed out due to inactivity.");
-                        session.close();
-                        break;
-                    }
-                }
-            } catch (Exception e) {
-                System.out.println("Error for user " + session.getUsername() +
-                        ": " + e.getMessage());
-            }
-        });
     }
 
     private static void handleEnter(Session session, String roomName) {

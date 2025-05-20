@@ -15,23 +15,23 @@ javac --enable-preview --release 21 -cp .:lib/json-20250107.jar Server.java Clie
 ### Client
 - Windows:
 ```
-java --enable-preview -cp ".;lib\json-20250107.jar" Client localhost <PORT> <USER> <PASS>
+java --enable-preview -cp ".;lib/json-20250107.jar" Client localhost <PORT> <USER> <PASS>
 ```
 
 - Unix:
 ```
-java --enable-preview -cp .:lib\json-20250107.jar Client localhost <PORT> <USER> <PASS>
+java --enable-preview -cp .:lib/json-20250107.jar Client localhost <PORT> <USER> <PASS>
 ```
 
 ### Server
 - Windows:
 ```
-java --enable-preview -cp ".;lib\json-20250107.jar" Server <PORT>
+java --enable-preview -cp ".;lib/json-20250107.jar" Server <PORT>
 ```
 
 - Unix:
 ```
-java --enable-preview -cp .:lib\json-20250107.jar Server <PORT>
+java --enable-preview -cp .:lib/json-20250107.jar Server <PORT>
 ```
 
 ## AI Setup

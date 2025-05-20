@@ -109,9 +109,6 @@ public class AuthenticationHandler {
                     true // autoClose underlying on close
             );
 
-            // Set read timeout (optional)
-            sslSocket.setSoTimeout(10000); // 10 seconds for read
-
             // Start handshake (can still timeout here)
             sslSocket.startHandshake();
 

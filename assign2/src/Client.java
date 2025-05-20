@@ -235,16 +235,6 @@ public class Client {
             try {
                 String line;
                 while ((line = reader.readLine()) != null) {
-                    if (line.equals("PING")) {
-                        ioLock.lock();
-                        try {
-                            writer.println("PONG");
-                            writer.flush();
-                        } finally {
-                            ioLock.unlock();
-                        }
-                        continue;
-                    }
                     if (line.startsWith(username + ": ")) continue;
                     System.out.println(line);
                 }
