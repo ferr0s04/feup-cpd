@@ -83,12 +83,14 @@ public class Client {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         executor.submit(Client::listenToServer);
 
+        System.out.println("--------------------------------------------------------------------------------------------");
         System.out.println("Available commands:");
         System.out.println("/list - List all rooms");
         System.out.println("/enter <room> - Enter a room");
         System.out.println("/create <room> - Create a new room");
         System.out.println("/createai <room> <prompt> - Create an AI room");
         System.out.println("/leave - Leave current room");
+        System.out.println("--------------------------------------------------------------------------------------------");
         System.out.println("Enter command:");
         String input;
 
@@ -125,15 +127,27 @@ public class Client {
                         command = "CREATE_AI " + parts[1];
                         break;
                     case "/leave":
+                        System.out.println("--------------------------------------------------------------------------------------------");
+                        System.out.println("Available commands:");
+                        System.out.println("/list - List all rooms");
+                        System.out.println("/enter <room> - Enter a room");
+                        System.out.println("/create <room> - Create a new room");
+                        System.out.println("/createai <room> - Create an AI room");
+                        System.out.println("/leave - Leave current room");
+                        System.out.println("--------------------------------------------------------------------------------------------");
+                        System.out.println("Enter command:");
                         command = "LEAVE";
                         break;
                     default:
+                        System.out.println("--------------------------------------------------------------------------------------------");
                         System.out.println("Unknown command. Available commands:");
                         System.out.println("/list - List all rooms");
                         System.out.println("/enter <room> - Enter a room");
                         System.out.println("/create <room> - Create a new room");
                         System.out.println("/createai <room> - Create an AI room");
                         System.out.println("/leave - Leave current room");
+                        System.out.println("--------------------------------------------------------------------------------------------");
+                        System.out.println("Enter command:");
                         continue;
                 }
 

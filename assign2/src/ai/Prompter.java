@@ -32,14 +32,18 @@ public class Prompter {
 
     public PromptOut prompt(String promptText, JSONArray context) throws IOException {
         String jsonIputString;
-
         openConnection();
+
+        // Garantir que context não seja nulo
+        if (context == null) {
+            context = new JSONArray();
+        }
 
         if (context.isEmpty()) {
             jsonIputString = String.format(
                     "{\"model\": \"%s\", \"prompt\": \"%s\", \"stream\": false }", modelName, promptText
             );
-        } else{
+        } else {
             jsonIputString = String.format(
                     "{\"model\": \"%s\", \"prompt\": \"%s\", \"stream\": false, \"context\": %s }", modelName, promptText, context
             );

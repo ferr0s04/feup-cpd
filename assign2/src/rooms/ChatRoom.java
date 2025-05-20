@@ -63,27 +63,6 @@ public class ChatRoom {
                 s.out.println(msg);
                 s.out.flush();
             }
-
-            if (isAI) {
-                try {
-                    Prompter prompter = new Prompter();
-                    PromptOut promptOut = prompter.prompt(msg, new JSONArray());
-                    String aiResponse = "AI: " + promptOut.getResponse();
-
-                    // Salva a resposta da IA
-                    history.add(aiResponse);
-                    DataUtils.addMessage(this.name, aiResponse);
-
-                    // Envia para todos os membros
-                    for (Session s : members) {
-                        s.out.println(aiResponse);
-                        s.out.flush();
-                    }
-
-                } catch (IOException e) {
-                    System.out.println("Erro ao processar resposta da IA: " + e.getMessage());
-                }
-            }
         } finally {
             lock.unlock();
         }
