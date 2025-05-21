@@ -193,6 +193,8 @@ public class Client {
                 return false;
             }
 
+            newSock.setSoTimeout(15000); // 15 seconds timeout
+
             // 2) Prepare new I/O objects
             PrintWriter newWriter = new PrintWriter(newSock.getOutputStream(), true);
             BufferedReader newReader = new BufferedReader(new InputStreamReader(newSock.getInputStream()));
@@ -235,6 +237,8 @@ public class Client {
             }
 
             System.out.println("Authentication successful. Welcome, " + username + "!");
+
+            startHeartbeat(); // <-- Start it here
             return true;
 
         } catch (IOException e) {
@@ -248,21 +252,24 @@ public class Client {
             try {
                 String line;
                 while ((line = reader.readLine()) != null) {
+                    if ("PONG".equals(line)) continue;
                     if (line.startsWith(username + ": ")) continue;
                     System.out.println(line);
                 }
 
-                // If readLine() returns null, the server closed the connection.
-                System.out.println("Disconnected from server. Attempting to reconnect...");
+                // Server closed the connection
+                System.out.println("[!] Lost connection to the server. Attempting to reconnect...");
 
             } catch (SocketTimeoutException e) {
-                System.out.println("Read timeout. Attempting reconnection...");
+                System.out.println("[!] Connection timeout. Attempting to reconnect...");
             } catch (IOException e) {
-                System.out.println("Connection error: " + e.getMessage());
+                System.out.println("[!] Connection error: " + e.getMessage());
             }
 
+            // Try to reconnect
             int retries = 0;
             final int maxRetries = 10;
+            boolean reconnected = false;
 
             while (running && retries < maxRetries) {
                 try {
@@ -272,25 +279,44 @@ public class Client {
                 ioLock.lock();
                 try {
                     if (connectAndAuthenticate(password, false)) {
-                        System.out.println("Reconnected.");
+                        System.out.println("[✓] Reconnected to the server.");
+                        reconnected = true;
                         break;
                     } else {
                         retries++;
-                        System.out.println("Retry " + retries + " of " + maxRetries);
+                        System.out.println("[…] Retry " + retries + " of " + maxRetries);
                     }
                 } finally {
                     ioLock.unlock();
                 }
             }
 
-            if (retries >= maxRetries) {
-                System.out.println("Failed to reconnect after " + maxRetries + " attempts. Exiting.");
+            if (!reconnected) {
+                System.out.println("[✗] Failed to reconnect after " + maxRetries + " attempts. Exiting.");
                 running = false;
                 System.exit(1);
             }
-
-            // Reconnection logic
-            if (!running) break;
         }
+
     }
+
+    private static void startHeartbeat() {
+        Thread heartbeat = new Thread(() -> {
+            while (running) {
+                try {
+                    Thread.sleep(10000); // every 10 seconds
+                    ioLock.lock();
+                    try {
+                        writer.println("PING");
+                        writer.flush();
+                    } finally {
+                        ioLock.unlock();
+                    }
+                } catch (InterruptedException ignored) {}
+            }
+        });
+        heartbeat.setDaemon(true);
+        heartbeat.start();
+    }
+
 }

@@ -215,6 +215,13 @@ public class Server {
                         handleMsg(session, parts.length > 1 ? parts[1] : "");
                         break;
 
+                    case "PING":
+                        session.updatePongTime();
+                        session.out.println("PONG");
+                        session.out.flush();
+                        break;
+
+
                     default:
                         session.out.println("ERROR Unknown command: " + cmd);
                         session.out.flush();
