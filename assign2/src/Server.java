@@ -21,7 +21,6 @@ public class Server {
     private static final Map<String, String> lastRoomMap = new HashMap<>();
 
     public static void main(String[] args) {
-
         if (args.length != 1) {
             System.out.println("Usage: java Server <port>");
             return;
@@ -41,6 +40,8 @@ public class Server {
         } finally {
             roomsLock.unlock();
         }
+
+        startSessionMonitor();
 
         try {
             SSLServerSocket serverSocket = AuthenticationHandler.createSSLServerSocket(port);
@@ -128,6 +129,8 @@ public class Server {
                         session.setUsername(username);
                         activeSessions.put(username, session);
                         session.out.println("AUTH_OK");
+
+                        System.out.println("User reconnected: " + username);
 
                         // Try to rejoin last room
                         String lastRoomName = lastRoomMap.get(username);
@@ -343,5 +346,40 @@ public class Server {
         room.leave(session);
         session.setCurrentRoom(null);
         session.out.println("YOU HAVE LEFT " + room.getName());
+    }
+
+    private static void startSessionMonitor() {
+        Thread monitor = new Thread(() -> {
+            final long TIMEOUT = 15000;
+            while (true) {
+                sessionLock.lock();
+                try {
+                    long now = System.currentTimeMillis();
+                    List<String> toRemove = new ArrayList<>();
+                    for (Map.Entry<String, Session> entry : activeSessions.entrySet()) {
+                        Session s = entry.getValue();
+                        if (s.isClosed()) {
+                            toRemove.add(entry.getKey());
+                            continue;
+                        }
+                        if (now - s.getLastPongTime() > TIMEOUT) {
+                            System.out.println("User disconnected: " + s.getUsername());
+                            s.close();
+                            toRemove.add(entry.getKey());
+                        }
+                    }
+                    for (String user : toRemove) {
+                        activeSessions.remove(user);
+                    }
+                } finally {
+                    sessionLock.unlock();
+                }
+                try {
+                    Thread.sleep(5000);
+                } catch (InterruptedException ignored) {}
+            }
+        });
+        monitor.setDaemon(true);
+        monitor.start();
     }
 }
