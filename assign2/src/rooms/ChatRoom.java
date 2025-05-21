@@ -2,13 +2,8 @@ package rooms;
 
 import data.DataUtils;
 import org.json.*;
-
-import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.locks.ReentrantLock;
-
-import ai.Prompter;
-import ai.PromptOut;
 
 public class ChatRoom {
     public String name;
@@ -29,7 +24,7 @@ public class ChatRoom {
         lock.lock();
         try {
             members.add(s);
-            s.out.println("---------------------------------- " + "JOINED ROOM: " + name + " ----------------------------------");
+            s.out.println(buildJoinBanner(name));
             for (String msg : history) {
                 s.out.println(msg);
             }
@@ -52,13 +47,13 @@ public class ChatRoom {
     public void broadcast(String msg) {
         lock.lock();
         try {
-            // Adiciona a mensagem ao histórico local
+            // Add the message to the history
             history.add(msg);
 
-            // Salva a mensagem no arquivo
+            // Saves the message to the data file
             DataUtils.addMessage(this.name, msg);
 
-            // Envia para todos os membros
+            // Send to all members
             for (Session s : members) {
                 s.out.println(msg);
                 s.out.flush();
@@ -80,29 +75,16 @@ public class ChatRoom {
         }
     }
 
-    // Getters e Setters
     public String getName() {
         return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
     }
 
     public boolean isAI() {
         return isAI;
     }
 
-    public void setAI(boolean AI) {
-        isAI = AI;
-    }
-
     public String getPrompt() {
         return prompt;
-    }
-
-    public void setPrompt(String prompt) {
-        this.prompt = prompt;
     }
 
     public List<String> getHistory() {
@@ -144,4 +126,15 @@ public class ChatRoom {
         }
     }
 
+    private String buildJoinBanner(String roomName) {
+        String base = " JOINED ROOM: " + roomName + " ";
+        int totalLength = 92;
+        int dashes = (totalLength - base.length()) / 2;
+
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < dashes; i++) sb.append("-");
+        sb.append(base);
+        while (sb.length() < totalLength) sb.append("-");
+        return sb.toString();
+    }
 }

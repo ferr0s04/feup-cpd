@@ -6,7 +6,22 @@
       "messages": [
         "Alice: Olá Bob",
         "Bob: Olá Alice, tudo bem?",
-        "Alice: Sim, tudo ótimo!"
+        "Alice: Sim, tudo ótimo!",
+        "Pedro: hello",
+        "Pedro: a",
+        "Pedro: a",
+        "Pedro: a",
+        "Pedro: a",
+        "Pedro: a",
+        "Castro: ola",
+        "Castro: tens artigos ilegais?",
+        "Ferros: efget",
+        "Castro: oi",
+        "Castro: dd",
+        "Castro: ff",
+        "Castro: oi",
+        "Castro: oi",
+        "Castro: hjv"
       ]
     },
     {
@@ -17,7 +32,16 @@
     {
       "isAI": true,
       "name": "Bot",
-      "messages": []
+      "messages": [
+        "Ferros: ola",
+        "AI: Olá! Como vai?",
+        "Ferros: conta uma piada",
+        "AI: Por que o gato não pôde ir ao show de música?\n\nPorque era um PURR-formance e ele não estava preparado para se sentar por tanto tempo!\n\n(Sorry, it's a cat-astrophic pun, but I hope it made you meow-l with laughter!)",
+        "Ferros: ola",
+        "AI: Olá! Como você está hoje?",
+        "Ferros: ola",
+        "AI: Olá novamente! Estou pronto para conversar, o que você gostaria de falar sobre?"
+      ]
     }
   ],
   "users": [

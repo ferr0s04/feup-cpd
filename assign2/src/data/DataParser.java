@@ -19,16 +19,8 @@ public class DataParser {
         return users;
     }
 
-    public void setUsers(List<User> users) {
-        this.users = users;
-    }
-
     public List<ChatRoom> getChatrooms() {
         return chatrooms;
-    }
-
-    public void setChatrooms(List<ChatRoom> chatrooms) {
-        this.chatrooms = chatrooms;
     }
 
     public void addUser(User user) {

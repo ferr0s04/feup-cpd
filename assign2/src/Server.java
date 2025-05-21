@@ -42,20 +42,17 @@ public class Server {
             roomsLock.unlock();
         }
 
-        ThreadHandler connectionHandler = new ThreadHandler();
-
         try {
             SSLServerSocket serverSocket = AuthenticationHandler.createSSLServerSocket(port);
             System.out.println("Server listening on port " + port);
 
             while (true) {
                 SSLSocket clientSock = (SSLSocket) serverSocket.accept();
-                connectionHandler.handleNewConnection(clientSock);
+                Thread.startVirtualThread(() -> handleClientConnection(clientSock));
             }
 
         } catch (Exception e) {
             e.printStackTrace();
-            connectionHandler.stopAll();
         }
     }
 
@@ -339,33 +336,5 @@ public class Server {
         room.leave(session);
         session.setCurrentRoom(null);
         session.out.println("YOU HAVE LEFT " + room.getName());
-    }
-
-    private static class ThreadHandler {
-        private final ReentrantLock lock = new ReentrantLock();
-        private final List<Thread> activeThreads = new ArrayList<>();
-
-        public void handleNewConnection(SSLSocket socket) {
-            Thread clientThread = new Thread(() -> handleClientConnection(socket));
-            lock.lock();
-            try {
-                activeThreads.add(clientThread);
-                clientThread.start();
-            } finally {
-                lock.unlock();
-            }
-        }
-
-        public void stopAll() {
-            lock.lock();
-            try {
-                for (Thread thread : activeThreads) {
-                    thread.interrupt();
-                }
-                activeThreads.clear();
-            } finally {
-                lock.unlock();
-            }
-        }
     }
 }

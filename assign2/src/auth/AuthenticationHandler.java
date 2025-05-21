@@ -15,15 +15,14 @@ import data.User;
 
 public class AuthenticationHandler {
     private static final int MAX_ATTEMPTS = 10;
-    private static final int WAIT_TIME = 1000;
-    private static final String SERVER_KEYSTORE_PATH = "auth/certs/server-keystore.jks";
+    private static final int WAIT_TIME = 5000;
+    private static final String KEYSTORE_PATH = "auth/certs/server-keystore.jks";
     private static final String TRUSTSTORE_PATH = "auth/certs/server-truststore.jks";
     private static final String TRUSTSTORE_PASSWORD = "password";
 
     private final Map<String, String> userPasswords = new HashMap<>();      // username -> passwordHash
-    private final Map<String, List<String>> userChatrooms = new HashMap<>(); // username -> chatrooms
-    private final String filePath;
     private DataParser data;
+    private final String filePath;
 
     public AuthenticationHandler(String filePath) {
         this.filePath = filePath;
@@ -67,7 +66,7 @@ public class AuthenticationHandler {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
             byte[] hashBytes = md.digest(password.getBytes());
 
-            // converte para string hexadecimal
+            // Conversion to hexadecimal string
             StringBuilder sb = new StringBuilder();
             for (byte b : hashBytes) {
                 sb.append(String.format("%02x", b));
@@ -98,18 +97,17 @@ public class AuthenticationHandler {
 
             // Create unconnected socket and connect with timeout
             Socket underlying = new Socket();
-            int connectTimeout = 5000; // 5 seconds
-            underlying.connect(new InetSocketAddress(host, port), connectTimeout);
+            underlying.connect(new InetSocketAddress(host, port), WAIT_TIME);
 
             // Wrap with SSL
             SSLSocket sslSocket = (SSLSocket) factory.createSocket(
                     underlying,
                     host,
                     port,
-                    true // autoClose underlying on close
+                    true
             );
 
-            // Start handshake (can still timeout here)
+            // Start handshake
             sslSocket.startHandshake();
 
             return sslSocket;
@@ -119,72 +117,19 @@ public class AuthenticationHandler {
         }
     }
 
-
-    /**
-     * Connects to the TLS server using only the truststore (no client certificate).
-     */
-    public static SSLSocket connectWithRetry(String serverAddress, int port, String truststorePath, String truststorePassword) {
-        int attempt = 0;
-        int waitTime = WAIT_TIME;
-
-        while (attempt < MAX_ATTEMPTS) {
-            try {
-                System.out.println("Attempting to connect to server (Attempt " + (attempt + 1) + ")...");
-                SSLSocket socket = createSSLSocket(serverAddress, port, truststorePath, truststorePassword);
-                socket.startHandshake(); // Force TLS handshake
-                return socket;
-            } catch (Exception e) {
-                System.out.println("Connection failed: " + e.getMessage());
-                attempt++;
-                if (attempt >= MAX_ATTEMPTS) {
-                    return null;
-                }
-                try {
-                    System.out.println("Retrying in " + waitTime + "ms...");
-                    Thread.sleep(waitTime);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    return null;
-                }
-                waitTime *= 2;
-            }
-        }
-        return null;
-    }
-
-    private static SSLSocket createSSLSocket(String host, int port,
-                                             String truststorePath, String truststorePassword) throws Exception {
-
-        // Only truststore (to validate server certificate)
-        KeyStore trustStore = KeyStore.getInstance("JKS");
-        trustStore.load(new FileInputStream(truststorePath), truststorePassword.toCharArray());
-
-        TrustManagerFactory tmf = TrustManagerFactory.getInstance("SunX509");
-        tmf.init(trustStore);
-
-        SSLContext sslContext = SSLContext.getInstance("TLS");
-        sslContext.init(null, tmf.getTrustManagers(), null); // No key managers (client has no cert)
-
-        SSLSocketFactory socketFactory = sslContext.getSocketFactory();
-        SSLSocket socket = (SSLSocket) socketFactory.createSocket(host, port);
-        socket.setEnabledProtocols(new String[]{"TLSv1.2"});
-
-        return socket;
-    }
-
     /**
      * Creates an SSLServerSocket that accepts connections using only server authentication.
      */
     public static SSLServerSocket createSSLServerSocket(int port) throws Exception {
         // Load server keystore and truststore
         KeyStore keystore = KeyStore.getInstance("JKS");
-        keystore.load(new FileInputStream("auth/certs/server-keystore.jks"), "password".toCharArray());
+        keystore.load(new FileInputStream(KEYSTORE_PATH), TRUSTSTORE_PASSWORD.toCharArray());
 
         KeyStore truststore = KeyStore.getInstance("JKS");
-        truststore.load(new FileInputStream("auth/certs/server-truststore.jks"), "password".toCharArray());
+        truststore.load(new FileInputStream(TRUSTSTORE_PATH), TRUSTSTORE_PASSWORD.toCharArray());
 
         KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
-        kmf.init(keystore, "password".toCharArray());
+        kmf.init(keystore, TRUSTSTORE_PASSWORD.toCharArray());
 
         TrustManagerFactory tmf = TrustManagerFactory.getInstance("SunX509");
         tmf.init(truststore);

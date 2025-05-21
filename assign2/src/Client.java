@@ -1,7 +1,6 @@
 import javax.net.ssl.*;
 import java.io.*;
 import java.net.SocketTimeoutException;
-import java.nio.file.*;
 import java.util.Scanner;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
@@ -80,8 +79,8 @@ public class Client {
         if (!connectAndAuthenticate(password, true)) return;
 
         // Start listener and command loop
-        ThreadSafeListener listener = new ThreadSafeListener(ioLock);
-        listener.start();
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        executor.submit(Client::listenToServer);
 
         System.out.println("--------------------------------------------------------------------------------------------");
         System.out.println("Available commands:");
@@ -178,7 +177,7 @@ public class Client {
         } finally {
             ioLock.unlock();
         }
-        listener.stop();
+        executor.shutdownNow();
 
     }
 
@@ -292,76 +291,6 @@ public class Client {
 
             // Reconnection logic
             if (!running) break;
-        }
-    }
-
-    private static class ThreadSafeListener implements Runnable {
-        private final ReentrantLock lock;
-        private volatile boolean running;
-        private final Thread thread;
-
-        public ThreadSafeListener(ReentrantLock lock) {
-            this.lock = lock;
-            this.running = true;
-            this.thread = new Thread(this);
-        }
-
-        public void start() {
-            thread.start();
-        }
-
-        public void stop() {
-            running = false;
-            thread.interrupt();
-        }
-
-        @Override
-        public void run() {
-            while (running) {
-                try {
-                    String line;
-                    while ((line = reader.readLine()) != null) {
-                        if (line.startsWith(username + ": ")) continue;
-                        System.out.println(line);
-                    }
-
-                    System.out.println("Desconectado do servidor. Tentando reconectar...");
-
-                } catch (SocketTimeoutException e) {
-                    System.out.println("Timeout de leitura. Tentando reconexão...");
-                } catch (IOException e) {
-                    System.out.println("Erro de conexão: " + e.getMessage());
-                }
-
-                // Lógica de reconexão com lock
-                int retries = 0;
-                final int maxRetries = 10;
-
-                while (running && retries < maxRetries) {
-                    try {
-                        Thread.sleep(2000);
-                    } catch (InterruptedException ignored) {}
-
-                    lock.lock();
-                    try {
-                        if (connectAndAuthenticate(password, false)) {
-                            System.out.println("Reconectado.");
-                            break;
-                        } else {
-                            retries++;
-                            System.out.println("Tentativa " + retries + " de " + maxRetries);
-                        }
-                    } finally {
-                        lock.unlock();
-                    }
-                }
-
-                if (retries >= maxRetries) {
-                    System.out.println("Falha ao reconectar após " + maxRetries + " tentativas. Saindo.");
-                    running = false;
-                    System.exit(1);
-                }
-            }
         }
     }
 }
