@@ -121,11 +121,11 @@ public class Client {
                         command = "CREATE_ROOM " + parts[1];
                         break;
                     case "/createai":
-                        if (parts.length != 2) {
-                            System.out.println("Usage: /createai <room_name>");
+                        if (parts.length < 3) {
+                            System.out.println("Usage: /createai <room_name> <prompt>");
                             continue;
                         }
-                        command = "CREATE_AI " + parts[1];
+                        command = "CREATE_AI " + parts[1] + " " + parts[2];
                         break;
                     case "/leave":
                         System.out.println("--------------------------------------------------------------------------------------------");

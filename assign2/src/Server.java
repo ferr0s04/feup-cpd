@@ -162,7 +162,7 @@ public class Server {
             // --- CHAT LOOP ---
             String line;
             while ((line = session.in.readLine()) != null) {
-                String[] parts = line.split(" ", 2);
+                String[] parts = line.split(" ", 3);
                 String cmd = parts[0];
 
                 switch (cmd) {
@@ -268,6 +268,7 @@ public class Server {
         newRoom.join(session);
         session.setCurrentRoom(newRoom);
         session.out.println("YOU HAVE ENTERED " + roomName);
+        System.out.println("User " + session.getUsername() + " joined room: " + roomName);
     }
 
     private static void handleMsg(Session session, String message) {
@@ -311,10 +312,10 @@ public class Server {
 
         String roomName = parts[1];
         String prompt = null;
-
-        if (parts.length >= 3 && "AI".equalsIgnoreCase(parts[2])) {
+        System.out.println(parts[2]);
+        if (parts.length >= 3 && isAI) {
             isAI = true;
-            prompt = parts[3];
+            prompt = parts[2];
         }
 
         roomsLock.lock();
@@ -333,9 +334,10 @@ public class Server {
 
             if (prompt != null) {
                 Prompter prompter = new Prompter();
-                prompter.prompt(prompt, new JSONArray());
+                PromptOut promptOut = prompter.prompt(prompt, new JSONArray());
+                room.setAIContext(promptOut.getContext());
 
-                DataUtils.updateContext(roomName, new JSONArray().put(prompt));
+                DataUtils.updateContext(roomName, promptOut.getContext());
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -353,6 +355,7 @@ public class Server {
         room.leave(session);
         session.setCurrentRoom(null);
         session.out.println("YOU HAVE LEFT " + room.getName());
+        System.out.println("User " + session.getUsername() + " left room: " + room.getName());
     }
 
     private static void startSessionMonitor() {
