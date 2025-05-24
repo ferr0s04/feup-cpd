@@ -2,10 +2,7 @@ import javax.net.ssl.*;
 import java.io.*;
 import java.net.SocketTimeoutException;
 import java.util.Scanner;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.locks.ReentrantLock;
-
 import auth.AuthenticationHandler;
 
 public class Client {
@@ -79,8 +76,9 @@ public class Client {
         if (!connectAndAuthenticate(password, true)) return;
 
         // Start listener and command loop
-        ExecutorService executor = Executors.newSingleThreadExecutor();
-        executor.submit(Client::listenToServer);
+        Thread listenerThread = Thread.ofVirtual()
+                .name("client-listener")
+                .start(Client::listenToServer);
 
         System.out.println("--------------------------------------------------------------------------------------------");
         System.out.println("Available commands:");
@@ -182,8 +180,11 @@ public class Client {
         } finally {
             ioLock.unlock();
         }
-        executor.shutdownNow();
 
+        listenerThread.interrupt();
+        try {
+            listenerThread.join(1000);
+        } catch (InterruptedException ignored) {}
     }
 
     private static boolean connectAndAuthenticate(String password, boolean initial) {
@@ -306,22 +307,24 @@ public class Client {
     }
 
     private static void startHeartbeat() {
-        Thread heartbeat = new Thread(() -> {
-            while (running) {
-                try {
-                    Thread.sleep(10000); // every 10 seconds
-                    ioLock.lock();
-                    try {
-                        writer.println("PING");
-                        writer.flush();
-                    } finally {
-                        ioLock.unlock();
+        Thread heartbeat = Thread
+                .ofVirtual()
+                .name("heartbeat")
+                .unstarted(() -> {
+                    while (running) {
+                        try {
+                            Thread.sleep(10000); // every 10 seconds
+                            ioLock.lock();
+                            try {
+                                writer.println("PING");
+                                writer.flush();
+                            } finally {
+                                ioLock.unlock();
+                            }
+                        } catch (InterruptedException ignored) {}
                     }
-                } catch (InterruptedException ignored) {}
-            }
-        });
+                });
         heartbeat.setDaemon(true);
         heartbeat.start();
     }
-
 }

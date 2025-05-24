@@ -356,37 +356,41 @@ public class Server {
     }
 
     private static void startSessionMonitor() {
-        Thread monitor = new Thread(() -> {
-            final long TIMEOUT = 15000;
-            while (true) {
-                sessionLock.lock();
-                try {
-                    long now = System.currentTimeMillis();
-                    List<String> toRemove = new ArrayList<>();
-                    for (Map.Entry<String, Session> entry : activeSessions.entrySet()) {
-                        Session s = entry.getValue();
-                        if (s.isClosed()) {
-                            toRemove.add(entry.getKey());
-                            continue;
+        Thread monitor = Thread
+                .ofVirtual()
+                .name("session-monitor", 0)
+                .unstarted(() -> {
+                    final long TIMEOUT = 15000;
+                    while (true) {
+                        sessionLock.lock();
+                        try {
+                            long now = System.currentTimeMillis();
+                            List<String> toRemove = new ArrayList<>();
+                            for (var entry : activeSessions.entrySet()) {
+                                Session s = entry.getValue();
+                                if (s.isClosed()) {
+                                    toRemove.add(entry.getKey());
+                                    continue;
+                                }
+                                if (now - s.getLastPongTime() > TIMEOUT) {
+                                    System.out.println("User disconnected: " + s.getUsername());
+                                    s.close();
+                                    toRemove.add(entry.getKey());
+                                }
+                            }
+                            for (String user : toRemove) {
+                                activeSessions.remove(user);
+                            }
+                        } finally {
+                            sessionLock.unlock();
                         }
-                        if (now - s.getLastPongTime() > TIMEOUT) {
-                            System.out.println("User disconnected: " + s.getUsername());
-                            s.close();
-                            toRemove.add(entry.getKey());
-                        }
+                        try {
+                            Thread.sleep(5000);
+                        } catch (InterruptedException ignored) {}
                     }
-                    for (String user : toRemove) {
-                        activeSessions.remove(user);
-                    }
-                } finally {
-                    sessionLock.unlock();
-                }
-                try {
-                    Thread.sleep(5000);
-                } catch (InterruptedException ignored) {}
-            }
-        });
+                });
         monitor.setDaemon(true);
         monitor.start();
     }
+
 }
