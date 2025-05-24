@@ -291,7 +291,7 @@ public class Server {
                 Prompter prompter = new Prompter();
                 JSONArray context = room.getAIContext();
 
-                PromptOut aiResponse = prompter.prompt(message, context);
+                PromptOut aiResponse = prompter.prompt(session.getUsername() + ": " + message, context);
                 room.setAIContext(aiResponse.getContext());
                 DataUtils.updateContext(room.name, aiResponse.getContext());
 
