@@ -89,6 +89,7 @@ public class Client {
         System.out.println("/create <room> - Create a new room");
         System.out.println("/createai <room> <prompt> - Create an AI room");
         System.out.println("/leave - Leave current room");
+        System.out.println("/exit - Exit the system");
         System.out.println("--------------------------------------------------------------------------------------------");
         System.out.println("Enter command:");
         String input;
@@ -133,10 +134,13 @@ public class Client {
                         System.out.println("/create <room> - Create a new room");
                         System.out.println("/createai <room> - Create an AI room");
                         System.out.println("/leave - Leave current room");
+                        System.out.println("/exit - Exit the system");
                         System.out.println("--------------------------------------------------------------------------------------------");
                         System.out.println("Enter command:");
                         command = "LEAVE";
                         break;
+                    case "/exit":
+                        System.exit(0);
                     default:
                         System.out.println("--------------------------------------------------------------------------------------------");
                         System.out.println("Unknown command. Available commands:");
@@ -145,6 +149,7 @@ public class Client {
                         System.out.println("/create <room> - Create a new room");
                         System.out.println("/createai <room> - Create an AI room");
                         System.out.println("/leave - Leave current room");
+                        System.out.println("/exit - Exit the system");
                         System.out.println("--------------------------------------------------------------------------------------------");
                         System.out.println("Enter command:");
                         continue;
