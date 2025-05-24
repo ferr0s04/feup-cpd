@@ -257,18 +257,34 @@ public class Client {
     }
 
     private static void listenToServer() {
+        boolean inHistory = true;
         while (running) {
             try {
                 String line;
                 while ((line = reader.readLine()) != null) {
-                    if ("PONG".equals(line)) continue;
+                    // Detect join banner
+                    if (line.contains("JOINED ROOM: ")) {
+                        inHistory = true; // Start history mode
+                        System.out.println(line);
+                        continue;
+                    }
+                    // Detect end of history
+                    if (line.contains("YOU HAVE ENTERED")) {
+                        inHistory = false;
+                        System.out.println(line);
+                        continue;
+                    }
+                    // Print all history (including own messages) while inHistory
+                    if (inHistory) {
+                        System.out.println(line);
+                        continue;
+                    }
+                    // After history, suppress own messages
                     if (line.startsWith(username + ": ")) continue;
+                    if ("PONG".equals(line)) continue;
                     System.out.println(line);
                 }
-
-                // Server closed the connection
                 System.out.println("[!] Lost connection to the server. Attempting to reconnect...");
-
             } catch (SocketTimeoutException e) {
                 System.out.println("[!] Connection timeout. Attempting to reconnect...");
             } catch (IOException e) {

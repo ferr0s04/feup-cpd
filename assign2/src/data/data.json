@@ -5,10 +5,10 @@
       "name": "geral",
       "context": [],
       "messages": [
-        "Alice: Olá Bob",
-        "Bob: Olá Alice, tudo bem?",
-        "Alice: Sim, tudo ótimo!",
-        "Pedro: hello"
+        "Castro: Olá pessoal, tudo bem?",
+        "Pedro: Olá Castro, tudo bem e você?",
+        "Ferros: Boas, tudo tranquilo?",
+        "Pedro: Sim tudo tranquilo, e você Ferros?"
       ]
     },
     {
