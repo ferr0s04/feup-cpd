@@ -39,7 +39,8 @@ public class DataUtils {
                 ChatRoom chatRoom = new ChatRoom(
                         room.getString("name"),
                         room.getBoolean("isAI"),
-                        room.optString("prompt", "")
+                        room.optString("prompt", ""),
+                        room.getJSONArray("context")
                 );
 
                 // Carrega mensagens
@@ -84,6 +85,9 @@ public class DataUtils {
                 if (!room.getPrompt().isEmpty()) {
                     roomJson.put("prompt", room.getPrompt());
                 }
+                if (room.isAI()) {
+                    roomJson.put("context", room.getAIContext());
+                }
                 rooms.put(roomJson);
             }
             json.put("chatrooms", rooms);
@@ -107,7 +111,7 @@ public class DataUtils {
         // Verifica se a sala já existe
         if (data.getChatrooms().stream()
                 .noneMatch(r -> r.getName().equals(roomName))) {
-            ChatRoom newRoom = new ChatRoom(roomName, isAI, "");
+            ChatRoom newRoom = new ChatRoom(roomName, isAI, "", new JSONArray());
             data.getChatrooms().add(newRoom);
             saveData(data);
         }
@@ -140,6 +144,37 @@ public class DataUtils {
 
         } catch (IOException e) {
             System.out.println("[DEBUG] Erro ao salvar mensagem: " + e.getMessage());
+        }
+    }
+
+    public static synchronized void updateContext(String roomName, JSONArray context) {
+        try {
+            // Lê o arquivo atual
+            String content = new String(Files.readAllBytes(Paths.get(DATA_FILE)));
+            JSONObject json = new JSONObject(content);
+            JSONArray rooms = json.getJSONArray("chatrooms");
+
+            // Encontra e atualiza a sala específica
+            for (int i = 0; i < rooms.length(); i++) {
+                JSONObject room = rooms.getJSONObject(i);
+                if (room.getString("name").equals(roomName)) {
+
+                    room.remove("context");
+                    room.put("context", context);
+                    break;
+                }
+            }
+
+            // Salva o arquivo atualizado
+            Files.write(
+                    Paths.get(DATA_FILE),
+                    json.toString(2).getBytes(),
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.TRUNCATE_EXISTING
+            );
+
+        } catch (IOException e) {
+            System.out.println("[DEBUG] Erro ao salvar contexto: " + e.getMessage());
         }
     }
 }

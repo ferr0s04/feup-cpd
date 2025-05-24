@@ -3,6 +3,7 @@
     {
       "isAI": false,
       "name": "geral",
+      "context": [],
       "messages": [
         "Alice: Olá Bob",
         "Bob: Olá Alice, tudo bem?",
@@ -12,11 +13,13 @@
     {
       "isAI": false,
       "name": "futebol",
+      "context": [],
       "messages": []
     },
     {
       "isAI": true,
       "name": "Bot",
+      "context": [],
       "messages": []
     }
   ],

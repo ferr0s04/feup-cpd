@@ -34,7 +34,7 @@ public class Server {
         try {
             DataParser data = DataUtils.loadData();
             for (ChatRoom roomData : data.getChatrooms()) {
-                ChatRoom chatRoom = new ChatRoom(roomData.getName(), roomData.isAI(), roomData.getPrompt());
+                ChatRoom chatRoom = new ChatRoom(roomData.getName(), roomData.isAI(), roomData.getPrompt(), roomData.getAIContext());
                 chatRoom.setHistory(roomData.getHistory());
                 rooms.put(chatRoom.getName(), chatRoom);
             }
@@ -241,10 +241,10 @@ public class Server {
     }
 
     // Métodos auxiliares para manipular salas e mensagens
-    private static ChatRoom getOrCreateRoom(String name, boolean isAI, String prompt) {
+    private static ChatRoom getOrCreateRoom(String name, boolean isAI, String prompt, JSONArray context) {
         roomsLock.lock();
         try {
-            return rooms.computeIfAbsent(name, rn -> new ChatRoom(rn, isAI, prompt));
+            return rooms.computeIfAbsent(name, rn -> new ChatRoom(rn, isAI, prompt, context));
         } finally {
             roomsLock.unlock();
         }
@@ -256,7 +256,7 @@ public class Server {
             return;
         }
 
-        ChatRoom newRoom = getOrCreateRoom(roomName, false, null);
+        ChatRoom newRoom = getOrCreateRoom(roomName, false, null, new JSONArray());
         if (session.getCurrentRoom() != null) session.getCurrentRoom().leave(session);
         newRoom.join(session);
         session.setCurrentRoom(newRoom);
@@ -283,12 +283,10 @@ public class Server {
             try {
                 Prompter prompter = new Prompter();
                 JSONArray context = room.getAIContext();
-                if (context == null) {
-                    context = new JSONArray();
-                }
 
                 PromptOut aiResponse = prompter.prompt(message, context);
                 room.setAIContext(aiResponse.getContext());
+                DataUtils.updateContext(room.name, aiResponse.getContext());
 
                 String aiMessage = "AI: " + aiResponse.getResponse();
                 room.broadcast(aiMessage);
@@ -318,13 +316,22 @@ public class Server {
                 session.out.println("ERROR Room already exists");
                 return;
             }
-            ChatRoom room = new ChatRoom(roomName, isAI, prompt);
+            ChatRoom room = new ChatRoom(roomName, isAI, prompt, new JSONArray());
             rooms.put(roomName, room);
             session.setCurrentRoom(room);
             room.join(session);
             session.out.println("ROOM_CREATED " + roomName + (isAI ? " (AI)" : ""));
 
             DataUtils.addChatroom(roomName, isAI);
+
+            if (prompt != null) {
+                Prompter prompter = new Prompter();
+                prompter.prompt(prompt, new JSONArray());
+
+                DataUtils.updateContext(roomName, new JSONArray().put(prompt));
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         } finally {
             roomsLock.unlock();
         }

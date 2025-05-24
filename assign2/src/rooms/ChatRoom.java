@@ -14,15 +14,17 @@ public class ChatRoom {
     public String name;
     public boolean isAI;
     public String prompt;
+    public JSONArray context;
 
     private final ReentrantLock lock = new ReentrantLock();
     private final List<Session> members = new ArrayList<>();
     private final List<String> history = new ArrayList<>();
 
-    public ChatRoom(String name, boolean isAI, String prompt) {
+    public ChatRoom(String name, boolean isAI, String prompt, JSONArray context) {
         this.name = name;
         this.isAI = isAI;
         this.prompt = prompt;
+        this.context = context;
     }
 
     public void join(Session s) {
@@ -124,12 +126,10 @@ public class ChatRoom {
         }
     }
 
-    private JSONArray aiContext; // Para armazenar o contexto da IA
-
     public JSONArray getAIContext() {
         lock.lock();
         try {
-            return aiContext;
+            return context;
         } finally {
             lock.unlock();
         }
@@ -138,7 +138,7 @@ public class ChatRoom {
     public void setAIContext(JSONArray context) {
         lock.lock();
         try {
-            this.aiContext = context;
+            this.context = context;
         } finally {
             lock.unlock();
         }
