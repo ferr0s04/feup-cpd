@@ -54,7 +54,10 @@ public class Client {
 
                 registrationSuccess = true;
                 System.out.println("Registration successful!");
-                System.out.println("Now run the client with: java Client <serverAddr> <port> <username> <password>");
+                System.out.println("Now hop in with: ");
+                System.out.println("WINDOWS -> java --enable-preview -cp \".;lib/json-20250107.jar\" Client localhost <PORT> <USER> <PASS>");
+                System.out.println("LINUX -> java --enable-preview -cp .:lib/json-20250107.jar Client localhost <PORT> <USER> <PASS>");
+
             }
             return;
         }

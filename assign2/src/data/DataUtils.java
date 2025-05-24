@@ -85,9 +85,7 @@ public class DataUtils {
                 if (!room.getPrompt().isEmpty()) {
                     roomJson.put("prompt", room.getPrompt());
                 }
-                if (room.isAI()) {
-                    roomJson.put("context", room.getAIContext());
-                }
+                roomJson.put("context", room.getAIContext());
                 rooms.put(roomJson);
             }
             json.put("chatrooms", rooms);

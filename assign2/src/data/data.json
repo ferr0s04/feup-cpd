@@ -8,21 +8,7 @@
         "Alice: Olá Bob",
         "Bob: Olá Alice, tudo bem?",
         "Alice: Sim, tudo ótimo!",
-        "Pedro: hello",
-        "Pedro: a",
-        "Pedro: a",
-        "Pedro: a",
-        "Pedro: a",
-        "Pedro: a",
-        "Castro: ola",
-        "Castro: tens artigos ilegais?",
-        "Ferros: efget",
-        "Castro: oi",
-        "Castro: dd",
-        "Castro: ff",
-        "Castro: oi",
-        "Castro: oi",
-        "Castro: hjv"
+        "Pedro: hello"
       ]
     },
     {
@@ -34,8 +20,7 @@
     {
       "isAI": true,
       "name": "Bot",
-      "context": [
-      ],
+      "context": [],
       "messages": [
         "Ferros: ola",
         "AI: Olá! Como vai?",
