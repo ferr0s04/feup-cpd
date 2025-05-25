@@ -154,6 +154,16 @@ public class Server {
                 } finally {
                     sessionLock.unlock();
                 }
+            } else if (loginParts[0].equals("REGISTER")) {
+                String username = loginParts[1];
+                String password = loginParts[2];
+                AuthenticationHandler authHandler = new AuthenticationHandler("data/data.json");
+                if (!authHandler.register(username, password)) {
+                    System.out.println("Registration failed. User already exists.\n");
+                    session.out.println("REGISTER_FAIL user already exists");
+                }
+                session.out.println("REGISTER_OK");
+                session.out.flush();
             } else {
                 session.out.println("AUTH_FAIL invalid command");
                 return;

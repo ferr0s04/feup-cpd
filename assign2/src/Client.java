@@ -35,35 +35,31 @@ public class Client {
                 username = scanner.nextLine().trim();
 
                 System.out.print("Choose a password: ");
-                String password = scanner.nextLine().trim();
+                String passwordIn = scanner.nextLine().trim();
 
                 System.out.print("Confirm your password: ");
                 String confirmPassword = scanner.nextLine().trim();
 
-                if (!password.equals(confirmPassword)) {
+                if (!passwordIn.equals(confirmPassword)) {
                     System.out.println("Passwords do not match. Please try again.\n");
                     continue;
                 }
 
-                // Save user
-                AuthenticationHandler authHandler = new AuthenticationHandler("data/data.json");
-                if (!authHandler.register(username, password)) {
-                    System.out.println("Registration failed. User already exists.\n");
-                    continue;
+                password = passwordIn;
+                serverAddress = args[0];
+                port = Integer.parseInt(args[1]);
+
+                console = new BufferedReader(new InputStreamReader(System.in));
+
+                if (connectAndAuthenticate(password, true, true)){
+                    registrationSuccess = true;
+                    return;
                 }
-
-                registrationSuccess = true;
-                System.out.println("Registration successful!");
-                System.out.println("Now hop in with: ");
-                System.out.println("WINDOWS -> java --enable-preview -cp \".;lib/json-20250107.jar\" Client localhost <PORT> <USER> <PASS>");
-                System.out.println("LINUX -> java --enable-preview -cp .:lib/json-20250107.jar Client localhost <PORT> <USER> <PASS>");
-
             }
-            return;
         }
 
         // LOGIN MODE
-        if (args.length < 4) {
+        if (args.length != 4 && args.length != 2) {
             System.out.println("Usage: java Client <serverAddr> <port> <username> <password>");
             return;
         }
@@ -76,7 +72,7 @@ public class Client {
         console = new BufferedReader(new InputStreamReader(System.in));
 
         // Initial connection
-        if (!connectAndAuthenticate(password, true)) return;
+        if (!connectAndAuthenticate(password, true, false)) return;
 
         // Start listener and command loop
         Thread listenerThread = Thread.ofVirtual()
@@ -190,7 +186,7 @@ public class Client {
         } catch (InterruptedException ignored) {}
     }
 
-    private static boolean connectAndAuthenticate(String password, boolean initial) {
+    private static boolean connectAndAuthenticate(String password, boolean initial, boolean register) {
         try {
             // 1) Establish a fresh connection
             SSLSocket newSock = AuthenticationHandler.connectToServerWithTruststore(
@@ -223,6 +219,8 @@ public class Client {
             // 4) Send login or resume-session
             if (!initial && sessionToken != null) {
                 writer.println("RESUME_SESSION " + sessionToken);
+            } else if (register) {
+                writer.println("REGISTER " + username + " " + password);
             } else {
                 writer.println("LOGIN " + username + " " + password);
             }
@@ -240,12 +238,22 @@ public class Client {
                 serverResponse = reader.readLine(); // Expecting "AUTH_OK"
             }
 
-            if (!"AUTH_OK".equals(serverResponse)) {
+            if (serverResponse.startsWith("AUTH_FAIL")) {
                 System.out.println("Authentication failed: " + serverResponse);
+                return false;
+            } else if (serverResponse.startsWith("REGISTER_FAIL")) {
+                System.out.println("Registration failed: " + serverResponse);
                 return false;
             }
 
-            System.out.println("Authentication successful. Welcome, " + username + "!");
+            if("AUTH_OK".equals(serverResponse)) {
+                System.out.println("Authentication successful. Welcome, " + username + "!");
+            } else if ("REGISTER_OK".equals(serverResponse)) {
+                System.out.println("Registration successful!");
+                System.out.println("Now hop in with: ");
+                System.out.println("WINDOWS -> java --enable-preview -cp \".;lib/json-20250107.jar\" Client localhost <PORT> <USER> <PASS>");
+                System.out.println("LINUX -> java --enable-preview -cp .:lib/json-20250107.jar Client localhost <PORT> <USER> <PASS>");
+            }
 
             startHeartbeat(); // <-- Start it here
             return true;
@@ -262,6 +270,7 @@ public class Client {
             try {
                 String line;
                 while ((line = reader.readLine()) != null) {
+                    if ("PONG".equals(line)) continue;
                     // Detect join banner
                     if (line.contains("JOINED ROOM: ")) {
                         inHistory = true; // Start history mode
@@ -281,7 +290,6 @@ public class Client {
                     }
                     // After history, suppress own messages
                     if (line.startsWith(username + ": ")) continue;
-                    if ("PONG".equals(line)) continue;
                     System.out.println(line);
                 }
                 System.out.println("[!] Lost connection to the server. Attempting to reconnect...");
@@ -303,7 +311,7 @@ public class Client {
 
                 ioLock.lock();
                 try {
-                    if (connectAndAuthenticate(password, false)) {
+                    if (connectAndAuthenticate(password, false, false)) {
                         System.out.println("[✓] Reconnected to the server.");
                         reconnected = true;
                         break;
