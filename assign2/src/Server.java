@@ -225,7 +225,7 @@ public class Server {
                         break;
 
                     case "MSG":
-                        handleMsg(session, parts.length > 1 ? parts[1] : "");
+                        handleMsg(session, parts.length > 2 ? parts[1] + " " + parts[2] : parts[1]);
                         break;
 
                     case "PING":
@@ -297,20 +297,27 @@ public class Server {
         room.broadcast(session.getUsername() + ": " + message);
 
         // Verifica se a sala é uma sala de IA
-        if (room.isAI()) {
-            try {
-                Prompter prompter = new Prompter();
-                JSONArray context = room.getAIContext();
+        roomsLock.lock();
+        try {
+            if (room.isAI()) {
+                Thread.ofVirtual().start(() -> {
+                    try {
+                        Prompter prompter = new Prompter();
+                        JSONArray context = room.getAIContext();
 
-                PromptOut aiResponse = prompter.prompt(session.getUsername() + ": " + message, context);
-                room.setAIContext(aiResponse.getContext());
-                DataUtils.updateContext(room.name, aiResponse.getContext());
+                        PromptOut aiResponse = prompter.prompt(session.getUsername() + ": " + message, context);
+                        room.setAIContext(aiResponse.getContext());
+                        DataUtils.updateContext(room.name, aiResponse.getContext());
 
-                String aiMessage = "AI: " + aiResponse.getResponse();
-                room.broadcast(aiMessage);
-            } catch (Exception e) {
-                session.out.println("ERROR AI failed to respond: " + e.getMessage());
+                        String aiMessage = "AI: " + aiResponse.getResponse();
+                        room.broadcast(aiMessage);
+                    } catch (Exception e) {
+                        session.out.println("ERROR AI failed to respond: " + e.getMessage());
+                    }
+                });
             }
+        } finally {
+            roomsLock.unlock();
         }
     }
 
