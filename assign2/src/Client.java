@@ -278,7 +278,7 @@ public class Client {
                         continue;
                     }
                     // Detect end of history
-                    if (line.contains("YOU HAVE ENTERED")) {
+                    if (line.contains("YOU HAVE ENTERED") || line.contains("ROOM_CREATED")) {
                         inHistory = false;
                         System.out.println(line);
                         continue;

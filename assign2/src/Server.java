@@ -322,7 +322,6 @@ public class Server {
 
         String roomName = parts[1];
         String prompt = null;
-        System.out.println(parts[2]);
         if (parts.length >= 3 && isAI) {
             isAI = true;
             prompt = parts[2];
